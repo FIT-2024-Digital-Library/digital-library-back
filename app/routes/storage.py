@@ -10,9 +10,9 @@ from minio.error import S3Error
 from minio.helpers import ObjectWriteResult
 
 from app.schemas import FileUploadedScheme, User
+from app.schemas.users import PrivilegesEnum
 from app.settings import minio_client, minio_cred
-from app.utils.auth import get_current_user
-
+from app.utils.auth import get_current_user, user_has_permissions
 
 router = APIRouter(
     prefix='/storage',
@@ -28,7 +28,7 @@ def is_file_exists(path_to_object: str) -> bool:
 
 
 @router.post("/", response_model=FileUploadedScheme, summary="Uploads new file. Privileged users only.")
-def upload_file(file: UploadFile = File(), user_data: User = Depends(get_current_user)):
+def upload_file(file: UploadFile = File(), user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)):
     full_path = file.filename
     name, extension = os.path.splitext(file.filename)
     index = 0
@@ -57,7 +57,7 @@ async def file_stream_generator(full_path: str) -> AsyncGenerator[bytes, Any]:
 
 
 @router.get("/download/{filename}", response_class=StreamingResponse)
-def download_file(filename: str):
+def download_file(filename: str, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)):
     if not is_file_exists(filename):
         raise HTTPException(404, "File not found")
     return StreamingResponse(
@@ -76,7 +76,7 @@ def list_files():
 
 
 @router.delete("{filename}", status_code=200, summary="Deletes file. Privileged users only.")
-def delete_file(filename: str, user_data: User = Depends(get_current_user)):
+def delete_file(filename: str, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)):
     if not is_file_exists(filename):
         raise HTTPException(404, "File not found")
     try:

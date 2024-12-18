@@ -1,3 +1,5 @@
+from typing_extensions import Unpack
+
 import datetime
 
 from sqlalchemy import select, insert, delete, update, func
@@ -10,7 +12,7 @@ from app.schemas import Review, ReviewCreate, ReviewUpdate, ReviewsFiltersScheme
 
 
 async def get_reviews_in_db(session: AsyncSession, filters: ReviewsFiltersScheme) -> List[int]:
-    query = select(review_table.c[*Review.model_fields]).limit(filters.limit).offset(filters.offset)
+    query = select(review_table.c[Unpack[Review.model_fields]]).limit(filters.limit).offset(filters.offset)
     if filters.book_id is not None:
         query = query.where(review_table.c.book_id == filters.book_id)
     if filters.owner_id is not None:
@@ -48,7 +50,7 @@ async def check_review_by_user_and_book(session: AsyncSession, owner_id: int, bo
 
 async def get_review_by_id(session: AsyncSession, review_id: int) -> Review:
     result = (await session.execute((
-        select(review_table.c[*Review.model_fields])
+        select(review_table.c[Unpack[Review.model_fields]])
         .where(review_table.c.id == review_id)
     ))).mappings().first()
     return None if result is None else Review(**result)
@@ -63,7 +65,7 @@ async def create_review_in_db(session: AsyncSession, owner_id: int, review_data:
     result = await session.execute(
         insert(review_table)
         .values(owner_id=owner_id, last_edit_date=datetime.date.today(), **review_data.model_dump())
-        .returning(review_table.c[*Review.model_fields])
+        .returning(review_table.c[Unpack[Review.model_fields]])
     )
     await session.commit()
     return Review(**result.mappings().first())
@@ -79,7 +81,7 @@ async def update_review_in_db(session: AsyncSession, review_id: int, owner_id: i
         update(review_table)
         .where(review_table.c.id == review_id)
         .values(last_edit_date=datetime.date.today(), **review_data.model_dump())
-        .returning(review_table.c[*Review.model_fields])
+        .returning(review_table.c[Unpack[Review.model_fields]])
     )
     await session.commit()
     return Review(**result.mappings().first())

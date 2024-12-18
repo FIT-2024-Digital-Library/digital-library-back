@@ -4,9 +4,15 @@ from fastapi import Request, HTTPException, status, Depends
 
 from app.crud.users import find_user_by_id
 from app.schemas import User
+from app.schemas.users import PrivilegesEnum
 from app.settings import auth_cred, async_session_maker
 
-__all__ = ["create_access_token", "get_current_admin_user", "get_current_user"]
+__all__ = ["create_access_token", "get_current_user"]
+_priority_ = {
+    "basic": 1,
+    "moderator": 2,
+    "admin": 3,
+}
 
 
 def create_access_token(data: dict) -> str:
@@ -45,7 +51,10 @@ async def get_current_user(token: str = Depends(get_token)):
     return user
 
 
-async def get_current_admin_user(current_user: User = Depends(get_current_user)):
-    if current_user.privileges == 'admin':
-        return current_user
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='No permission')
+def user_has_permissions(permission: PrivilegesEnum):
+    async def check_permission(current_user: User = Depends(get_current_user)) -> User:
+        if _priority_[current_user.privileges] >= _priority_[permission]:
+            return current_user
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='No permission')
+
+    return Depends(check_permission)

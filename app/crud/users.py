@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import user_table
 from app.schemas import UserRegister, UserLogin
-from app.schemas.users import PrivilegesEnum
+from app.schemas.users import PrivilegesEnum, UserUpdate, UserLogined
 from app.utils import get_password_hash, verify_password
 
 
@@ -21,7 +21,10 @@ async def register_user(session: AsyncSession, user_data: UserRegister):
     user_dict.pop("password")
     query = insert(user_table).values(**user_dict)
     result = await session.execute(query)
-    if result.inserted_primary_key:
+    key = result.inserted_primary_key
+    if key:
+        if key == 1:
+            await set_role_for_user(session, PrivilegesEnum.ADMIN, 1)
         user_dict.pop("password_hash")
         return user_dict
 
@@ -71,27 +74,33 @@ async def delete_user_from_db(session: AsyncSession, user_id: int):
     return user
 
 
-async def update_user_in_db(session: AsyncSession, user_id: int, user_data: UserRegister):
-    user = await find_user_by_id(session, user_id)
-    if user is None:
+async def update_user_in_db(session: AsyncSession, user_id: int, user_new_data: UserUpdate):
+    user_current_data = await find_user_by_id(session, user_id)
+    if user_current_data is None:
         raise HTTPException(status_code=403, detail="User doesn't exist")
-    user_dict = user_data.model_dump()
 
-    user_dict["password_hash"] = get_password_hash(user_data.password)
-    user_dict.pop("password")
-    query = update(user_table).where(user_table.c.id == user_id).values(**user_dict)
+    user_new_dict = user_new_data.model_dump()
+
+    for key, value in user_current_data.items():
+        if key not in user_new_dict.keys() or user_new_dict[key] is None:
+            user_new_dict[key] = value
+    if user_new_data.password is not None:
+        user_new_dict["password_hash"] = get_password_hash(user_new_data.password)
+    user_new_dict.pop("password")
+    print(user_new_dict)
+    query = update(user_table).where(user_table.c.id == user_id).values(**user_new_dict)
     await session.execute(query)
 
     user = await find_user_by_id(session, user_id)
     return user
 
 
-async def set_admin_role_for_user(session: AsyncSession, user_id: int):
+async def set_role_for_user(session: AsyncSession, privilege: PrivilegesEnum, user_id: int):
     user = await find_user_by_id(session, user_id)
     if user is None:
         raise HTTPException(status_code=403, detail="User doesn't exist")
 
-    query = update(user_table).where(user_table.c.id == user_id).values(**{'privileges': PrivilegesEnum.ADMIN})
+    query = update(user_table).where(user_table.c.id == user_id).values(**{'privileges': privilege})
     await session.execute(query)
     user = await find_user_by_id(session, user_id)
     return user

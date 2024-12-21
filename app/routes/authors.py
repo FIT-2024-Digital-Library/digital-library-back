@@ -1,13 +1,12 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.crud.authors import get_author_from_db, get_authors_from_db, create_author_in_db, \
     delete_author_from_db, update_author_in_db
-from app.schemas import Author, AuthorCreate
-from app.schemas.users import PrivilegesEnum, User
+from app.schemas import Author, AuthorCreate, PrivilegesEnum, User
 from app.settings import async_session_maker
 from app.utils import CrudException
-from app.utils.auth import get_current_user, user_has_permissions
+from app.utils.auth import user_has_permissions
 
 router = APIRouter(
     prefix='/authors',

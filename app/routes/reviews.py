@@ -7,6 +7,7 @@ from app.schemas import User, ReviewsFiltersScheme, Review, ReviewCreate, Review
 from app.settings import async_session_maker
 from app.utils.auth import get_current_user
 
+
 router = APIRouter(
     prefix='/reviews',
     tags=['review']

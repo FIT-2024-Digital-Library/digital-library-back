@@ -1,17 +1,13 @@
-import urllib.parse
-
 from datetime import date
 from typing import Optional, List
 from fastapi import APIRouter, Query, HTTPException
 
 from app.crud.books import get_books_from_db, get_book_from_db, create_book_in_db, \
     update_book_in_db, delete_book_from_db
-from app.crud.storage import file_stream_generator
-from app.schemas import Book, BookCreate, User
-from app.schemas.books import BookUpdate
-from app.schemas.users import PrivilegesEnum
+from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
 from app.settings import async_session_maker
-from app.utils.auth import get_current_user, user_has_permissions
+from app.utils.auth import user_has_permissions
+
 
 router = APIRouter(
     prefix='/books',

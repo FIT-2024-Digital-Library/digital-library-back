@@ -3,8 +3,7 @@ from fastapi import APIRouter, HTTPException, status, Response, Depends
 from app.crud.users import find_user_by_id, get_users_from_db, update_user_in_db, \
     delete_user_from_db, set_role_for_user
 from app.crud.users import register_user, login_user
-from app.schemas import UserRegister, UserLogin, User, UserLogined
-from app.schemas.users import PrivilegesEnum, UserUpdate
+from app.schemas import UserRegister, UserLogin, User, UserLogined, PrivilegesEnum, UserUpdate
 from app.settings import async_session_maker
 from app.utils.auth import create_access_token, get_current_user, user_has_permissions
 

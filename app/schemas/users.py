@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import Field, EmailStr
 from .base import CamelCaseBaseModel
 
-__all__ = ["User", "UserLogin", "UserRegister", "UserLogined"]
+__all__ = ["User", "UserLogin", "UserRegister", "UserLogined", "PrivilegesEnum", "UserUpdate"]
 
 
 class PrivilegesEnum(str, Enum):

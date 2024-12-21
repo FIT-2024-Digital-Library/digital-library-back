@@ -7,7 +7,7 @@ from app.schemas import User
 from app.schemas.users import PrivilegesEnum
 from app.settings import auth_cred, async_session_maker
 
-__all__ = ["create_access_token", "get_current_user"]
+__all__ = ["create_access_token", "get_current_user", "user_has_permissions"]
 _priority_ = {
     "basic": 1,
     "moderator": 2,

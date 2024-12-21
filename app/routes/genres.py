@@ -1,13 +1,13 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.crud.genres import get_genre_from_db, get_genres_from_db, create_genre_in_db, \
     delete_genre_from_db, update_genre_in_db
-from app.schemas import Genre, GenreCreate
-from app.schemas.users import PrivilegesEnum, User
+from app.schemas import Genre, GenreCreate, PrivilegesEnum, User
 from app.settings import async_session_maker
 from app.utils import CrudException
-from app.utils.auth import get_current_user, user_has_permissions
+from app.utils.auth import user_has_permissions
+
 
 router = APIRouter(
     prefix='/genres',

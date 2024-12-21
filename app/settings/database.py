@@ -18,5 +18,5 @@ class PostgresSettings(BaseSettings):
 
 
 pg_cred = PostgresSettings()
-db_engine = create_async_engine(pg_cred.postgres_url, echo=True)
+db_engine = create_async_engine(pg_cred.postgres_url)
 async_session_maker = async_sessionmaker(db_engine, expire_on_commit=False)

@@ -1,34 +1,67 @@
+networks:
+  library-dev:
+
 services:
-  postgres:
+
+  lib-elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.16.0
+    container_name: library-elastic
+    environment:
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - discovery.type=single-node
+    ports:
+      - "${ELASTIC_API_PORT}:9200"
+      - "${ELASTIC_CLUSTER_PORT}:9300"
+    volumes:
+      - es-lib-volume:/usr/share/elasticsearch/data
+    tty: true
+    restart: always
+    networks:
+      - library-dev
+    healthcheck:
+      test: "curl -f http://localhost:9200/_cluster/health?pretty"
+      interval: 35s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+
+  lib-postgres:
     image: postgres:17.0-alpine
     container_name: library-postgres
     env_file: $PROJECT_PATH/config/postgres.env
     ports:
       - ${POSTGRES_HOST_PORT}:5432
     volumes:
-      - pgdata-volume:/var/lib/postgresql/data
+      - pgdata-lib-volume:/var/lib/postgresql/data
     healthcheck:
       test: "pg_isready -U postgres_user -d postgres_db"
-      interval: 3s
-      timeout: 3s
+      interval: 40s
+      timeout: 5s
       start_period: 5s
       retries: 5
     restart: always
-  minio-setup:
+    networks:
+      - library-dev
+
+  lib-minio-setup:
     container_name: library-minio-setup
     depends_on:
-      minio:
+      lib-minio:
         condition: service_healthy
-        restart: true
     image: minio/mc:latest
     env_file:
       - $PROJECT_PATH/config/minio-server.env
       - $PROJECT_PATH/config/minio-client.env
     volumes:
-      - minio-volume:/data
+      - minio-lib-volume:/data
       - $PROJECT_PATH/config/minio-setup.sh:/setup.sh
     entrypoint: bash /setup.sh
-  minio:
+    restart: always
+    networks:
+      - library-dev
+
+  lib-minio:
     container_name: library-minio
     image: minio/minio:latest
     env_file:
@@ -37,24 +70,30 @@ services:
       - "${MINIO_PORT}:9000"
       - "${MINIO_BROWSER_PORT}:9001"
     volumes:
-      - minio-volume:/data
+      - minio-lib-volume:/data
     command: server --console-address ":9001"
     healthcheck:
       test: "curl -f http://localhost:9000/minio/health/live"
-      interval: 50s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-      start_interval: 5s
+      interval: 40s
+      timeout: 5s
+      start_period: 5s
+      retries: 5
     restart: always
+    networks:
+      - library-dev
 
 volumes:
-  minio-volume:
+  es-lib-volume:
+    driver_opts:
+      type: none
+      o: bind
+      device: $ELASTIC_VOLUME_PATH
+  minio-lib-volume:
     driver_opts:
       type: none
       o: bind
       device: $MINIO_VOLUME_PATH
-  pgdata-volume:
+  pgdata-lib-volume:
     driver_opts:
       type: none
       o: bind

@@ -4,4 +4,4 @@ __all__ = ["FileUploadedScheme"]
 
 
 class FileUploadedScheme(CamelCaseBaseModel):
-    url: str
+    qname: str

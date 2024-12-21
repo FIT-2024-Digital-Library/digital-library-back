@@ -25,10 +25,23 @@ async def get_books(
         author: Optional[str] = Query(None, description="Filter by author"),
         genre: Optional[str] = Query(None, description="Filter by name"),
         published_date: Optional[date] = Query(None, description="Filter by publication date"),
-        description: Optional[str] = Query(None, description="Filter by description keyword")
+        description: Optional[str] = Query(None, description="Filter by description keyword"),
+        min_mark: Optional[float] = Query(
+            None,
+            description="Minimum mark (from 1 to 5 inclusive)",
+            ge=1.0,
+            le=5.0
+        ),
+
+        max_mark: Optional[float] = Query(
+            None,
+            description="Maximum mark (from 1 to 5 inclusive)",
+            ge=1.0,
+            le=5.0
+        )
 ):
     async with async_session_maker() as session:
-        books = await get_books_from_db(session, title, author, genre, published_date, description)
+        books = await get_books_from_db(session, title, author, genre, published_date, description, min_mark, max_mark)
         return books
 
 

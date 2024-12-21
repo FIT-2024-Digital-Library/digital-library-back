@@ -15,7 +15,9 @@ async def get_books_from_db(
         author: str = None,
         genre: str = None,
         published_date: date = None,
-        description: str = None):
+        description: str = None,
+        min_mark: float = None,
+        max_mark: float = None):
     query = select(book_table)
     if title is not None:
         query = query.where(book_table.c.title.ilike(f"%{title}%"))
@@ -35,6 +37,11 @@ async def get_books_from_db(
         query = query.where(book_table.c.published_date == published_date)
     if description is not None:
         query = query.where(book_table.c.description.ilike(f"%{description}%"))
+    if min_mark is not None:
+        query = query.where(book_table.c.avg_mark >= min_mark)
+    if max_mark is not None:
+        query = query.where(book_table.c.avg_mark <= max_mark)
+
     result = await session.execute(query)
     books = result.mappings().all()
     return books

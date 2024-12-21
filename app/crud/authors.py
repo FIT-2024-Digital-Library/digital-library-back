@@ -15,7 +15,7 @@ async def get_author_from_db(session: AsyncSession, author_id: int):
 
 async def get_authors_from_db(session: AsyncSession, name: str = None):
     if name is not None:
-        query = select(author_table).where(author_table.c.name == name)
+        query = select(author_table).where(author_table.c.name.ilike(f"%{name}%"))
     else:
         query = select(author_table)
     result = await session.execute(query)

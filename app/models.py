@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Table, Column, Integer, String, Date, ForeignKey
+from sqlalchemy import MetaData, Table, Column, Integer, String, Date, ForeignKey, Float
 from sqlalchemy.dialects.postgresql import ENUM
 
 db_metadata = MetaData()
@@ -40,7 +40,9 @@ book_table = Table(
     Column("published_date", Date, nullable=True),
     Column("description", String, nullable=True),
     Column("image_qname", String, nullable=True),
-    Column("pdf_qname", String)
+    Column("pdf_qname", String),
+    Column("avg_mark", Float),
+    Column("marks_count", Integer)
 )
 
 review_table = Table(

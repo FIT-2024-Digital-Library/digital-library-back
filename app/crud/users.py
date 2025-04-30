@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
 from app.crud.crud_interface import CrudInterface
-from app.models import user_table
+from app.models import User
 from app.schemas import UserRegister, UserLogin, PrivilegesEnum, UserUpdate, UserLogined
 from app.utils import get_password_hash, verify_password
 
@@ -15,26 +15,26 @@ class UsersCrud(CrudInterface):
     @classmethod
     async def get(cls, session: AsyncSession, element_id: int):
         query = select(
-            user_table.c.id,
-            user_table.c.email,
-            user_table.c.name,
-            user_table.c.privileges
-        ).where(user_table.c.id == element_id)
+            User.id,
+            User.email,
+            User.name,
+            User.privileges
+        ).where(User.id == element_id)
         result = await session.execute(query)
         return result.mappings().first()
 
     @classmethod
     async def get_multiple(cls, session: AsyncSession, username=None, email=None):
         query = select(
-            user_table.c.id,
-            user_table.c.email,
-            user_table.c.name,
-            user_table.c.privileges
+            User.id,
+            User.email,
+            User.name,
+            User.privileges
         )
         if username:
-            query = query.where(user_table.c.name.ilike(f"%{username}%"))
+            query = query.where(User.name.ilike(f"%{username}%"))
         if email:
-            query = query.where(user_table.c.email.ilike(f"%{email}%"))
+            query = query.where(User.email.ilike(f"%{email}%"))
 
         result = await session.execute(query)
         users = result.mappings().all()
@@ -42,7 +42,7 @@ class UsersCrud(CrudInterface):
 
     @classmethod
     async def create(cls, session: AsyncSession, model: UserRegister):
-        query = select(user_table).where(user_table.c.email == model.email)
+        query = select(User).where(User.email == model.email)
         result = await session.execute(query)
         result = result.first()
         if result:
@@ -53,11 +53,11 @@ class UsersCrud(CrudInterface):
         user_dict['privileges'] = "basic"
         user_dict.pop("password")
 
-        query = insert(user_table).values(**user_dict)
-        result = await session.execute(query)
-        key = result.inserted_primary_key
+        user = User(**user_dict)
+        session.add(user)
+        await session.flush()
 
-        if key and key[0] == 1:
+        if user.id == 1:
             await cls.set_role_for_user(session, PrivilegesEnum.ADMIN, 1)
             user_dict['privileges'] = "admin"
 
@@ -68,7 +68,7 @@ class UsersCrud(CrudInterface):
     async def delete(cls, session: AsyncSession, element_id: int):
         user = await cls.get(session, element_id)
         if user:
-            query = delete(user_table).where(user_table.c.id == element_id)
+            query = delete(User).where(User.id == element_id)
             await session.execute(query)
         return user
 
@@ -88,7 +88,7 @@ class UsersCrud(CrudInterface):
             user_new_dict["password_hash"] = get_password_hash(model.password)
         user_new_dict.pop("password")
 
-        query = update(user_table).where(user_table.c.id == element_id).values(**user_new_dict)
+        query = update(User).where(User.id == element_id).values(**user_new_dict)
         await session.execute(query)
 
         user = await cls.get(session, element_id)
@@ -100,15 +100,15 @@ class UsersCrud(CrudInterface):
         if user is None:
             raise HTTPException(status_code=403, detail="User doesn't exist")
 
-        query = update(user_table).where(user_table.c.id == user_id).values(privileges=privilege)
+        query = update(User).where(User.id == user_id).values(privileges=privilege)
         await session.execute(query)
         return await cls.get(session, user_id)
 
     @classmethod
     async def login(cls, session: AsyncSession, user_data: UserLogin):
-        query = select(user_table).where(user_table.c.email == user_data.email)
+        query = select(User).where(User.email == user_data.email)
         result = await session.execute(query)
-        user = result.mappings().first()
-        if not user or not verify_password(user_data.password, user["password_hash"]):
+        user = result.scalars().first()
+        if not user or not verify_password(user_data.password, user.password_hash):
             return None
         return user

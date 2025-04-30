@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Response, Depends
 
 from app.crud.users import UsersCrud
+from app.models import Base
 from app.schemas import UserRegister, UserLogin, User, UserLogined, PrivilegesEnum, UserUpdate
 from app.settings import async_session_maker
 from app.utils.auth import create_access_token, get_current_user, user_has_permissions
@@ -19,16 +20,20 @@ async def get_profile(user_data: User = Depends(get_current_user)):
 @router.post('/login', response_model=User, summary='Logs user in')
 async def login(response: Response, user_data: UserLogin):
     async with async_session_maker() as session:
-        check = await UsersCrud.login(session, user_data)
-        if check is None:
+        user = await UsersCrud.login(session, user_data)
+        if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail='Wrong password or email')
-        access_token = create_access_token({"sub": str(check.id)})
+        access_token = create_access_token({"sub": str(user.id)})
         response.set_cookie(key="users_access_token", value=access_token, httponly=True, secure=True, samesite='none')
-        data = dict(check)
-        data.pop('password_hash')
+        user_data = {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "privileges": user.privileges
+        }
         await session.commit()
-        return data
+        return user_data
 
 
 @router.post('/register', response_model=UserLogined, summary='Creates new user')

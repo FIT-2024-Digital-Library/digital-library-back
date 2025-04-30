@@ -1,3 +1,4 @@
+import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,3 +32,7 @@ app.include_router(authors.router)
 app.include_router(genres.router)
 app.include_router(storage.router)
 app.include_router(reviews.router)
+
+
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=2)

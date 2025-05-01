@@ -20,15 +20,12 @@ class BooksCrud(CrudInterface):
             .where(and_(book_table.c.id == element_id, book_table.c.author == author_table.c.id))
         result = await session.execute(query)
         book_dict = dict(result.mappings().first())
-        print(book_dict)
         book_dict['author'] = book_dict['author_str']
         if book_dict['genre']:
             query = select(genre_table.c.name) \
                 .where(genre_table.c.id == book_dict['genre'])
             result = await session.execute(query)
             book_dict['genre'] = result.scalar()
-        print(book_dict)
-        # result['author'] = await session.execute(q)
         return book_dict
 
     @classmethod

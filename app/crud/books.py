@@ -9,7 +9,7 @@ from app.crud.genres import GenresCrud
 from app.crud.indexing import Indexing
 from app.crud.storage import Storage
 from app.models import book_table, author_table, genre_table
-from app.schemas import Book, GenreCreate, AuthorCreate
+from app.schemas import BookCreate, GenreCreate, AuthorCreate
 from app.schemas.books import BookUpdate
 
 
@@ -63,7 +63,7 @@ class BooksCrud(CrudInterface):
         return [book['id'] for book in books]
 
     @classmethod
-    async def create(cls, session: AsyncSession, model: Book):
+    async def create(cls, session: AsyncSession, model: BookCreate):
         book_dict = model.model_dump()
         if book_dict['genre']:
             genre_creation_model = GenreCreate(name=book_dict['genre'])

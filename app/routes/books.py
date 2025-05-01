@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, HTTPException, BackgroundTasks
 from app.crud.books import BooksCrud
 from app.crud.indexing import Indexing
 from app.crud.storage import Storage
-from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
+from app.schemas import Book, User, BookUpdate, PrivilegesEnum
 from app.settings import async_session_maker
 from app.utils.auth import user_has_permissions
 
@@ -51,10 +51,10 @@ async def get_book(book_id: int):
         return result
 
 
-@router.post('/create', response_model=int,
+@router.post('/create', response_model=Book,
              summary='Creates new book. Only for authorized user with moderator privilege')
 async def create_book(
-        book: BookCreate, background_tasks: BackgroundTasks,
+        book: Book, background_tasks: BackgroundTasks,
         user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)
 ):
     async with async_session_maker() as session:

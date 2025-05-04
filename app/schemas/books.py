@@ -11,7 +11,7 @@ class BookCreate(CamelCaseBaseModel):
     genre: Optional[str] = None
     published_date: Optional[int] = None
     description: Optional[str] = None
-    image_qname: str = ""
+    image_qname: Optional[str] = None
     pdf_qname: str
     avg_mark: Optional[float] = 0
     marks_count: Optional[int] = 0

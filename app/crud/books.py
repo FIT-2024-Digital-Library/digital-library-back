@@ -89,7 +89,9 @@ class BooksCrud(CrudInterface):
         if not book_in_db:
             return None
 
+
         book_dict = model.model_dump()
+
         if book_dict['pdf_qname'] and book_dict['pdf_qname'] != book_in_db['pdf_qname']:
             await Indexing.delete_book(element_id)
             Storage.delete_file_in_s3(urllib.parse.unquote(book_in_db['pdf_qname']))
@@ -108,10 +110,6 @@ class BooksCrud(CrudInterface):
             author_creation_model = AuthorCreate(name=book_dict['author'])
             author_id = await AuthorsCrud.get_existent_or_create(session, author_creation_model)
             book_dict['author'] = author_id
-
-        for key, value in book_dict.items():
-            if book_dict[key] is None:
-                book_dict[key] = book_in_db[key]
 
         query = update(book_table).where(book_table.c.id == element_id).values(**book_dict)
         await session.execute(query)

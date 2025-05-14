@@ -1,26 +1,26 @@
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 
 class CrudInterface(ABC):
     @abstractmethod
-    async def get(cls, session: AsyncSession, element_id: int):
+    async def get(cls, connection: AsyncConnection, element_id: int):
         pass
 
     @abstractmethod
-    async def get_multiple(cls, session: AsyncSession):
+    async def get_multiple(cls, connection: AsyncConnection):
         pass
 
     @abstractmethod
-    async def create(cls, session: AsyncSession, model: BaseModel):
+    async def create(cls, connection: AsyncConnection, model: BaseModel):
         pass
 
     @abstractmethod
-    async def delete(cls, session: AsyncSession, element_id: int):
+    async def delete(cls, connection: AsyncConnection, element_id: int):
         pass
 
     @abstractmethod
-    async def update(cls, session: AsyncSession, element_id: int, model: BaseModel):
+    async def update(cls, connection: AsyncConnection, element_id: int, model: BaseModel):
         pass

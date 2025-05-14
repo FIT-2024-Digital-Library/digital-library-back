@@ -1,6 +1,6 @@
 from typing import List, Optional
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, insert, delete, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.exc import IntegrityError
 
 from app.crud.crud_interface import CrudInterface
@@ -11,8 +11,8 @@ from app.utils import CrudException
 
 class GenresCrud(CrudInterface):
     @classmethod
-    async def get(cls, session: AsyncSession, genre_id: int) -> Optional[Genre]:
-        result = await session.execute(
+    async def get(cls, connection: AsyncConnection, genre_id: int) -> Optional[Genre]:
+        result = await connection.execute(
             select(Genre)
             .where(Genre.id == genre_id)
         )
@@ -21,7 +21,7 @@ class GenresCrud(CrudInterface):
     @classmethod
     async def get_multiple(
             cls,
-            session: AsyncSession,
+            connection: AsyncConnection,
             name: Optional[str] = None
     ) -> List[Genre]:
         query = select(Genre)
@@ -29,42 +29,48 @@ class GenresCrud(CrudInterface):
         if name is not None:
             query = query.where(Genre.name.ilike(f"%{name}%"))
 
-        result = await session.execute(query)
+        result = await connection.execute(query)
         return result.scalars().all()
 
     @classmethod
-    async def create(cls, session: AsyncSession, genre: GenreCreate) -> int:
-        new_genre = Genre(name=genre.name)
-        session.add(new_genre)
-        await session.flush()
-        return new_genre.id
+    async def create(cls, connection: AsyncConnection, genre: GenreCreate) -> int:
+        """Создать нового автора"""
+        result = await connection.execute(
+            insert(Genre)
+            .values(name=genre.name)
+            .returning(Genre.id)
+        )
+        return result.scalar_one()
 
     @classmethod
     async def get_existent_or_create(
             cls,
-            session: AsyncSession,
+            connection: AsyncConnection,
             genre: GenreCreate
     ) -> int:
-        existing_genres = await cls.get_multiple(session, name=genre.name)
+        existing_genres = await cls.get_multiple(connection, name=genre.name)
 
         if existing_genres:
             return existing_genres[0].id
 
-        new_genre = Genre(name=genre.name)
-        session.add(new_genre)
-        await session.flush()
-        return new_genre.id
+        result = await connection.execute(
+            insert(Genre)
+            .values(name=genre.name)
+            .returning(Genre.id)
+        )
+        return result.scalar_one()
 
     @classmethod
-    async def delete(cls, session: AsyncSession, genre_id: int) -> Optional[Genre]:
+    async def delete(cls, connection: AsyncConnection, genre_id: int) -> Optional[Genre]:
         try:
-            genre = await cls.get(session, genre_id)
+            genre = await cls.get(connection, genre_id)
             if genre:
-                await session.delete(genre)
-                await session.flush()
+                await connection.execute(
+                    delete(Genre)
+                    .where(Genre.id == genre_id)
+                )
             return genre
         except IntegrityError as e:
-            await session.rollback()
             raise CrudException(
                 "Cannot delete genre - it is referenced by other records"
             )
@@ -72,19 +78,20 @@ class GenresCrud(CrudInterface):
     @classmethod
     async def update(
             cls,
-            session: AsyncSession,
+            connection: AsyncConnection,
             genre_id: int,
             genre: GenreCreate
     ) -> Optional[Genre]:
         try:
-            genre_in_db = await cls.get(session, genre_id)
+            genre_in_db = await cls.get(connection, genre_id)
             if genre_in_db:
-                genre_in_db.name = genre.name
-                await session.flush()
-                await session.refresh(genre_in_db)
+                await connection.execute(
+                    update(Genre)
+                    .where(Genre.id == genre_id)
+                    .values(name=genre.name)
+                )
             return genre_in_db
         except IntegrityError as e:
-            await session.rollback()
             raise CrudException(
                 "Cannot update genre - integrity constraint violation"
             )

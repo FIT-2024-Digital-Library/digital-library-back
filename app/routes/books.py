@@ -1,13 +1,13 @@
 import urllib.parse
 from typing import Optional, List
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, Depends
 
 from app.crud.books import BooksCrud
 from app.crud.indexing import Indexing
 from app.crud.storage import Storage
 from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
-from app.settings import async_session_maker
 from app.utils.auth import user_has_permissions
+from app.utils.unit_of_work import get_uow, UnitOfWork
 
 router = APIRouter(
     prefix='/books',
@@ -34,18 +34,21 @@ async def get_books(
             description="Maximum mark (from 1 to 5 inclusive)",
             ge=1.0,
             le=5.0
-        )
+        ),
+        uow: UnitOfWork = Depends(get_uow)
 ):
-    async with async_session_maker() as session:
-        books = await BooksCrud.get_multiple(session, title, author, genre, published_date, description, min_mark,
+    with uow.begin():
+        books = await BooksCrud.get_multiple(uow.get_connection(), title, author, genre, published_date, description,
+                                             min_mark,
                                              max_mark)
         return books
 
 
 @router.get('/{book_id}', response_model=Book, summary='Returns book data')
-async def get_book(book_id: int):
-    async with async_session_maker() as session:
-        result = await BooksCrud.get(session, book_id)
+async def get_book(book_id: int,
+                   uow: UnitOfWork = Depends(get_uow)):
+    with uow.begin():
+        result = await BooksCrud.get(uow.get_connection(), book_id)
         if result is None:
             raise HTTPException(status_code=404, detail="Book not found")
         return result
@@ -55,11 +58,12 @@ async def get_book(book_id: int):
              summary='Creates new book. Only for authorized user with moderator privilege')
 async def create_book(
         book: BookCreate, background_tasks: BackgroundTasks,
-        user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)
+        user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
+        uow: UnitOfWork = Depends(get_uow)
 ):
-    async with async_session_maker() as session:
-        book_id = await BooksCrud.create(session, book)
-        await session.commit()
+    with uow.begin():
+        book_id = await BooksCrud.create(uow.get_connection(), book)
+        await uow.get_connection().commit()
         background_tasks.add_task(
             Indexing.index_book, book_id, book.genre, urllib.parse.unquote(book.pdf_qname)
         )
@@ -69,23 +73,25 @@ async def create_book(
 @router.put('/{book_id}/update', response_model=Book,
             summary='Updates book data. Only for authorized user with admin privilege')
 async def update_book(book_id: int, book: BookUpdate,
-                      user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)):
-    async with async_session_maker() as session:
-        book = await BooksCrud.update(session, book_id, book)  ## тут тоже надо Celery
+                      user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
+                      uow: UnitOfWork = Depends(get_uow)):
+    with uow.begin():
+        book = await BooksCrud.update(uow.get_connection(), book_id, book)  ## тут тоже надо Celery
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
-        await session.commit()
+        await uow.get_connection().commit()
         return book
 
 
 @router.delete('/{book_id}/delete', response_model=Book,
                summary='Deletes book. Only for authorized user with admin privilege')
-async def delete_book(book_id: int, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)):
-    async with async_session_maker() as session:
-        book = await BooksCrud.delete(session, book_id)
+async def delete_book(book_id: int, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
+                      uow: UnitOfWork = Depends(get_uow)):
+    with uow.begin():
+        book = await BooksCrud.delete(uow.get_connection(), book_id)
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
-        await session.commit()
+        await uow.get_connection().commit()
         await Indexing.delete_book(book_id)
         Storage.delete_file_in_s3(urllib.parse.unquote(book['pdf_qname']))
         Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))

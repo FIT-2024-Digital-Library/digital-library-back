@@ -1,7 +1,7 @@
 import urllib.parse
 from typing import List, Optional
 from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.orm import selectinload
 
 from app.crud.authors import AuthorsCrud
@@ -16,9 +16,8 @@ from app.schemas.books import BookUpdate
 
 class BooksCrud(CrudInterface):
     @classmethod
-    async def get(cls, session: AsyncSession, element_id: int) -> Optional[Book]:
-        """Получить книгу по ID с загрузкой связанных данных"""
-        result = await session.execute(
+    async def get(cls, connection: AsyncConnection, element_id: int) -> Optional[Book]:
+        result = await connection.execute(
             select(Book)
             .where(Book.id == element_id)
         )
@@ -27,7 +26,7 @@ class BooksCrud(CrudInterface):
     @classmethod
     async def get_multiple(
             cls,
-            session: AsyncSession,
+            connection: AsyncConnection,
             title: Optional[str] = None,
             author: Optional[str] = None,
             genre: Optional[str] = None,
@@ -36,20 +35,17 @@ class BooksCrud(CrudInterface):
             min_mark: Optional[float] = None,
             max_mark: Optional[float] = None
     ) -> List[int]:
-        """Получить список ID книг с фильтрацией"""
         query = select(Book.id)
-
-        # Применяем фильтры
         filters = []
         if title:
             filters.append(Book.title.ilike(f"%{title}%"))
         if author:
-            author_in_db = await AuthorsCrud.get_multiple(session, author)
+            author_in_db = await AuthorsCrud.get_multiple(connection, author)
             if not author_in_db:
                 return []
             filters.append(Book.author == author_in_db[0].id)
         if genre:
-            genre_in_db = await GenresCrud.get_multiple(session, genre)
+            genre_in_db = await GenresCrud.get_multiple(connection, genre)
             if not genre_in_db:
                 return []
             filters.append(Book.genre == genre_in_db[0].id)
@@ -65,68 +61,61 @@ class BooksCrud(CrudInterface):
         if filters:
             query = query.where(and_(*filters))
 
-        result = await session.execute(query)
+        result = await connection.execute(query)
         return [book_id for (book_id,) in result.all()]
 
     @classmethod
-    async def create(cls, session: AsyncSession, model: BookCreate) -> int:
-        """Создать новую книгу"""
+    async def create(cls, connection: AsyncConnection, model: BookCreate) -> int:
         book_data = model.model_dump()
 
-        # Обработка жанра
         if book_data['genre']:
             genre_id = await GenresCrud.get_existent_or_create(
-                session,
+                connection,
                 GenreCreate(name=book_data['genre'])
             )
             book_data['genre'] = genre_id
 
-        # Обработка автора
         author_id = await AuthorsCrud.get_existent_or_create(
-            session,
+            connection,
             AuthorCreate(name=book_data['author'])
         )
         book_data['author'] = author_id
 
-        # Создание книги
-        book = Book(**book_data)
-        session.add(book)
-        await session.flush()
-        return book.id
+        result = await connection.execute(
+            Book.__table__.insert().returning(Book.id),
+            book_data
+        )
+        return result.scalar()
+
 
     @classmethod
-    async def delete(cls, session: AsyncSession, element_id: int) -> Optional[Book]:
-        """Удалить книгу"""
-        book = await cls.get(session, element_id)
+    async def delete(cls, connection: AsyncConnection, element_id: int) -> Optional[Book]:
+        book = await cls.get(connection, element_id)
         if not book:
             return None
 
-        # Удаление связанных файлов
         if book.pdf_qname:
             await Indexing.delete_book(element_id)
             Storage.delete_file_in_s3(urllib.parse.unquote(book.pdf_qname))
         if book.image_qname:
             Storage.delete_file_in_s3(urllib.parse.unquote(book.image_qname))
 
-        await session.delete(book)
-        await session.commit()
+        await connection.execute(Book.__table__.delete().where(Book.id == element_id))
         return book
 
     @classmethod
     async def update(
             cls,
-            session: AsyncSession,
+            connection: AsyncConnection,
             element_id: int,
             model: BookUpdate
     ) -> Optional[Book]:
-        """Обновить информацию о книге"""
-        book = await cls.get(session, element_id)
+        book = await cls.get(connection, element_id)
         if not book:
             return None
 
         update_data = model.model_dump(exclude_unset=True)
 
-        # Обработка PDF файла
         if 'pdf_qname' in update_data and update_data['pdf_qname'] != book.pdf_qname:
             if book.pdf_qname:
                 await Indexing.delete_book(element_id)
@@ -140,30 +129,25 @@ class BooksCrud(CrudInterface):
                     urllib.parse.unquote(update_data['pdf_qname'])
                 )
 
-        # Обработка изображения
         if 'image_qname' in update_data and update_data['image_qname'] != book.image_qname:
             if book.image_qname:
                 Storage.delete_file_in_s3(urllib.parse.unquote(book.image_qname))
 
-        # Обработка жанра
         if 'genre' in update_data and update_data['genre']:
             genre_id = await GenresCrud.get_existent_or_create(
-                session,
+                connection,
                 GenreCreate(name=update_data['genre'])
             )
             update_data['genre'] = genre_id
 
-        # Обработка автора
         if 'author' in update_data and update_data['author']:
             author_id = await AuthorsCrud.get_existent_or_create(
-                session,
+                connection,
                 AuthorCreate(name=update_data['author'])
             )
             update_data['author'] = author_id
 
-        # Обновление полей
         for key, value in update_data.items():
             setattr(book, key, value)
 
-        await session.commit()
         return book

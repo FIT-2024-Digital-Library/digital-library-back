@@ -16,7 +16,7 @@ class GenresCrud(CrudInterface):
             select(Genre)
             .where(Genre.id == genre_id)
         )
-        return result.scalars().first()
+        return result.mappings().first()
 
     @classmethod
     async def get_multiple(
@@ -30,7 +30,7 @@ class GenresCrud(CrudInterface):
             query = query.where(Genre.name.ilike(f"%{name}%"))
 
         result = await connection.execute(query)
-        return result.scalars().all()
+        return result.mappings().all()
 
     @classmethod
     async def create(cls, connection: AsyncConnection, genre: GenreCreate) -> int:

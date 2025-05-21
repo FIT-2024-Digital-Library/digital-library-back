@@ -37,7 +37,7 @@ async def get_books(
         ),
         uow: UnitOfWork = Depends(get_uow)
 ):
-    with uow.begin():
+    async with uow.begin():
         books = await BooksCrud.get_multiple(uow.get_connection(), title, author, genre, published_date, description,
                                              min_mark,
                                              max_mark)
@@ -47,7 +47,7 @@ async def get_books(
 @router.get('/{book_id}', response_model=Book, summary='Returns book data')
 async def get_book(book_id: int,
                    uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         result = await BooksCrud.get(uow.get_connection(), book_id)
         if result is None:
             raise HTTPException(status_code=404, detail="Book not found")
@@ -61,7 +61,7 @@ async def create_book(
         user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
         uow: UnitOfWork = Depends(get_uow)
 ):
-    with uow.begin():
+    async with uow.begin():
         book_id = await BooksCrud.create(uow.get_connection(), book)
         await uow.get_connection().commit()
         background_tasks.add_task(
@@ -75,7 +75,7 @@ async def create_book(
 async def update_book(book_id: int, book: BookUpdate,
                       user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                       uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         book = await BooksCrud.update(uow.get_connection(), book_id, book)  ## тут тоже надо Celery
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
@@ -87,7 +87,7 @@ async def update_book(book_id: int, book: BookUpdate,
                summary='Deletes book. Only for authorized user with admin privilege')
 async def delete_book(book_id: int, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                       uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         book = await BooksCrud.delete(uow.get_connection(), book_id)
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")

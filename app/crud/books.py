@@ -1,6 +1,6 @@
 import urllib.parse
 from typing import List, Optional
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update, insert, delete
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.orm import selectinload
 
@@ -21,7 +21,7 @@ class BooksCrud(CrudInterface):
             select(Book)
             .where(Book.id == element_id)
         )
-        return result.scalars().first()
+        return result.mappings().first()
 
     @classmethod
     async def get_multiple(
@@ -82,11 +82,9 @@ class BooksCrud(CrudInterface):
         book_data['author'] = author_id
 
         result = await connection.execute(
-            Book.__table__.insert().returning(Book.id),
-            book_data
+            insert(Book).values(**book_data).returning(Book.id)
         )
         return result.scalar()
-
 
     @classmethod
     async def delete(cls, connection: AsyncConnection, element_id: int) -> Optional[Book]:
@@ -100,7 +98,7 @@ class BooksCrud(CrudInterface):
         if book.image_qname:
             Storage.delete_file_in_s3(urllib.parse.unquote(book.image_qname))
 
-        await connection.execute(Book.__table__.delete().where(Book.id == element_id))
+        await connection.execute(delete(Book).where(Book.id == element_id))
         return book
 
     @classmethod
@@ -116,22 +114,22 @@ class BooksCrud(CrudInterface):
 
         update_data = model.model_dump(exclude_unset=True)
 
-        if 'pdf_qname' in update_data and update_data['pdf_qname'] != book.pdf_qname:
-            if book.pdf_qname:
+        if 'pdf_qname' in update_data and update_data['pdf_qname'] != book['pdf_qname']:
+            if book['pdf_qname']:
                 await Indexing.delete_book(element_id)
-                Storage.delete_file_in_s3(urllib.parse.unquote(book.pdf_qname))
+                Storage.delete_file_in_s3(urllib.parse.unquote(book['pdf_qname']))
 
             if update_data['pdf_qname']:
-                genre = update_data.get('genre', book.genre)
+                genre = update_data.get('genre', book['genre'])
                 await Indexing.index_book(
                     element_id,
                     genre,
                     urllib.parse.unquote(update_data['pdf_qname'])
                 )
 
-        if 'image_qname' in update_data and update_data['image_qname'] != book.image_qname:
-            if book.image_qname:
-                Storage.delete_file_in_s3(urllib.parse.unquote(book.image_qname))
+        if 'image_qname' in update_data and update_data['image_qname'] != book['image_qname']:
+            if book['image_qname']:
+                Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))
 
         if 'genre' in update_data and update_data['genre']:
             genre_id = await GenresCrud.get_existent_or_create(
@@ -148,6 +146,10 @@ class BooksCrud(CrudInterface):
             update_data['author'] = author_id
 
         for key, value in update_data.items():
-            setattr(book, key, value)
+            if update_data[key] is None:
+                update_data[key] = update_data[key]
 
-        return book
+        query = update(Book).where(Book.id == element_id).values(**update_data)
+        await connection.execute(query)
+
+        return await cls.get(connection, element_id)

@@ -16,7 +16,7 @@ router = APIRouter(
 @router.get('/', response_model=List[Genre], summary='Returns genres')
 async def get_genres(name: Optional[str] = Query(None, description="Find by genre name"),
                      uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         genres = await GenresCrud.get_multiple(uow.get_connection(), name)
         if genres is None:
             raise HTTPException(status_code=404, detail="Genre not found")
@@ -25,7 +25,7 @@ async def get_genres(name: Optional[str] = Query(None, description="Find by genr
 
 @router.get('/{genre_id}', response_model=Genre, summary='Returns genre')
 async def get_genre(genre_id: int, uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         genre = await GenresCrud.get(uow.get_connection(), genre_id)
         if genre is None:
             raise HTTPException(status_code=404, detail="Genre not found")
@@ -36,7 +36,7 @@ async def get_genre(genre_id: int, uow: UnitOfWork = Depends(get_uow)):
 async def create_genre(genre: GenreCreate,
                        user_creds: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                        uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         key = await GenresCrud.get_multiple(uow.get_connection(), name=genre.name)
         if len(key) == 0:
             key = await GenresCrud.create(uow.get_connection(), genre)
@@ -50,7 +50,7 @@ async def create_genre(genre: GenreCreate,
 async def delete_genre(genre_id: int,
                        user_creds: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                        uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         try:
             genre = await GenresCrud.delete(uow.get_connection(), genre_id)
             if genre is None:
@@ -65,7 +65,7 @@ async def delete_genre(genre_id: int,
 async def update_genre(genre_id: int, genre: GenreCreate,
                        user_creds: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                        uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         try:
             genre = await GenresCrud.update(uow.get_connection(), genre_id, genre)
             if genre is None:

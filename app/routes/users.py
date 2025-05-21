@@ -19,7 +19,7 @@ async def get_profile(user_data: User = Depends(get_current_user)):
 
 @router.post('/login', response_model=User, summary='Logs user in')
 async def login(response: Response, user_data: UserLogin, uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         user = await UsersCrud.login(uow.get_connection(), user_data)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
@@ -37,7 +37,7 @@ async def login(response: Response, user_data: UserLogin, uow: UnitOfWork = Depe
 
 @router.post('/register', response_model=UserLogined, summary='Creates new user')
 async def register(user_data: UserRegister, uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         data = await UsersCrud.create(uow.get_connection(), user_data)
         return data
 
@@ -52,7 +52,7 @@ async def logout_user(response: Response):
 async def set_privilege_for_user(user_id: int, privilege: PrivilegesEnum,
                                  user_creds: User = user_has_permissions(PrivilegesEnum.ADMIN),
                                  uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         data = await UsersCrud.set_role_for_user(uow.get_connection(), privilege, user_id)
         return data
 
@@ -61,7 +61,7 @@ async def set_privilege_for_user(user_id: int, privilege: PrivilegesEnum,
 async def update_user_by_id(user_id: int, user_data: UserUpdate,
                             user_creds: User = Depends(get_current_user), uow: UnitOfWork = Depends(get_uow)):
     if user_creds.privileges == PrivilegesEnum.ADMIN or user_creds.id == user_id:
-        with uow.begin():
+        async with uow.begin():
             data = await UsersCrud.update(uow.get_connection(), user_id, user_data)
             return data
     else:
@@ -72,7 +72,7 @@ async def update_user_by_id(user_id: int, user_data: UserUpdate,
 async def delete_user_by_id(user_id: int,
                             user_creds: User = Depends(get_current_user), uow: UnitOfWork = Depends(get_uow)):
     if user_creds.privileges == PrivilegesEnum.ADMIN or user_creds.id == user_id:
-        with uow.begin():
+        async with uow.begin():
             data = await UsersCrud.delete(uow.get_connection(), user_id)
             if data is None:
                 raise HTTPException(status_code=403, detail="User doesn't exist")
@@ -83,7 +83,7 @@ async def delete_user_by_id(user_id: int,
 
 @router.get('/{user_id}', response_model=User, summary='Returns user by id')
 async def get_user_by_id(user_id: int, uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         user = await UsersCrud.get(uow.get_connection(), user_id)
         if user is None:
             raise HTTPException(status_code=403, detail="User doesn't exist")
@@ -92,6 +92,6 @@ async def get_user_by_id(user_id: int, uow: UnitOfWork = Depends(get_uow)):
 
 @router.get('/', response_model=list[User], summary='Returns all users')
 async def get_users(user_creds: User = user_has_permissions(PrivilegesEnum.ADMIN), uow: UnitOfWork = Depends(get_uow)):
-    with uow.begin():
+    async with uow.begin():
         data = await UsersCrud.get_multiple(uow.get_connection())
         return data

@@ -16,7 +16,7 @@ class AuthorsCrud(CrudInterface):
             select(Author)
             .where(Author.id == author_id)
         )
-        return result.scalars().first()
+        return result.mappings().first()
 
     @classmethod
     async def get_multiple(
@@ -30,7 +30,7 @@ class AuthorsCrud(CrudInterface):
             query = query.where(Author.name.ilike(f"%{name}%"))
 
         result = await connection.execute(query)
-        return result.scalars().all()
+        return result.mappings().all()
 
     @classmethod
     async def create(cls, connection: AsyncConnection, author: AuthorCreate) -> int:

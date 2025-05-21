@@ -29,7 +29,7 @@ class UnitOfWork:
     def get_connection(self) -> AsyncConnection:
         current_connection = self.__connection.get()
         if current_connection is None:
-            raise RuntimeError("Connection is not established. Use 'async with uow.begin()'.")
+            raise RuntimeError("Connection is not established. Use 'async async with uow.begin()'.")
         return current_connection
 
 

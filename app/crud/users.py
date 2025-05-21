@@ -108,7 +108,8 @@ class UsersCrud(CrudInterface):
     async def login(cls, connection: AsyncConnection, user_data: UserLogin):
         query = select(User).where(User.email == user_data.email)
         result = await connection.execute(query)
-        user = result.scalars().first()
-        if not user or not verify_password(user_data.password, user.password_hash):
+        print(result.keys())
+        user = result.mappings().first()
+        if not user or not verify_password(user_data.password, user["password_hash"]):
             return None
         return user

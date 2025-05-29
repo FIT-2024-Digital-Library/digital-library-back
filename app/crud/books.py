@@ -1,6 +1,6 @@
 import urllib.parse
 from datetime import date
-from sqlalchemy import select, insert, update, delete
+from sqlalchemy import and_, select, insert, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.authors import AuthorsCrud
@@ -8,7 +8,7 @@ from app.crud.crud_interface import CrudInterface
 from app.crud.genres import GenresCrud
 from app.crud.indexing import Indexing
 from app.crud.storage import Storage
-from app.models import book_table
+from app.models import book_table, author_table, genre_table
 from app.schemas import BookCreate, GenreCreate, AuthorCreate
 from app.schemas.books import BookUpdate
 
@@ -16,9 +16,17 @@ from app.schemas.books import BookUpdate
 class BooksCrud(CrudInterface):
     @classmethod
     async def get(cls, session: AsyncSession, element_id: int):
-        query = select(book_table).where(book_table.c.id == element_id)
+        query = select(book_table, author_table.c.name.label('author_str')) \
+            .where(and_(book_table.c.id == element_id, book_table.c.author == author_table.c.id))
         result = await session.execute(query)
-        return result.mappings().first()
+        book_dict = dict(result.mappings().first())
+        book_dict['author'] = book_dict['author_str']
+        if book_dict['genre']:
+            query = select(genre_table.c.name) \
+                .where(genre_table.c.id == book_dict['genre'])
+            result = await session.execute(query)
+            book_dict['genre'] = result.scalar()
+        return book_dict
 
     @classmethod
     async def get_multiple(cls, session: AsyncSession, title=None, author=None, genre=None, published_date=None,
@@ -65,7 +73,7 @@ class BooksCrud(CrudInterface):
 
         query = insert(book_table).values(**book_dict)
         result = await session.execute(query)
-        return result.inserted_primary_key[0]
+        return await cls.get(session, result.inserted_primary_key[0])
 
     @classmethod
     async def delete(cls, session: AsyncSession, element_id: int):
@@ -81,7 +89,9 @@ class BooksCrud(CrudInterface):
         if not book_in_db:
             return None
 
+
         book_dict = model.model_dump()
+
         if book_dict['pdf_qname'] and book_dict['pdf_qname'] != book_in_db['pdf_qname']:
             await Indexing.delete_book(element_id)
             Storage.delete_file_in_s3(urllib.parse.unquote(book_in_db['pdf_qname']))
@@ -100,10 +110,6 @@ class BooksCrud(CrudInterface):
             author_creation_model = AuthorCreate(name=book_dict['author'])
             author_id = await AuthorsCrud.get_existent_or_create(session, author_creation_model)
             book_dict['author'] = author_id
-
-        for key, value in book_dict.items():
-            if book_dict[key] is None:
-                book_dict[key] = book_in_db[key]
 
         query = update(book_table).where(book_table.c.id == element_id).values(**book_dict)
         await session.execute(query)

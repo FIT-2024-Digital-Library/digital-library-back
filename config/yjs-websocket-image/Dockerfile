@@ -1,4 +1,4 @@
-FROM node:20.17-alpine AS build
+FROM node:20.17-alpine
 
 RUN npm install -g @y/websocket-server
 

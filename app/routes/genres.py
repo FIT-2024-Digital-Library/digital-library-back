@@ -42,7 +42,7 @@ async def create_genre(genre: GenreCreate,
             key = await GenresCrud.create(uow.get_connection(), genre)
         else:
             raise HTTPException(status_code=409, detail="Genre already exists")
-        await uow.get_connection().commit()
+        # Commit is handled automatically by the UnitOfWork context manager.
         return key
 
 

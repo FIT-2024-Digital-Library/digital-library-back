@@ -95,6 +95,7 @@ class BooksCrud(CrudInterface):
         if book.pdf_qname:
             await Indexing.delete_book(element_id)
             Storage.delete_file_in_s3(urllib.parse.unquote(book.pdf_qname))
+
         if book.image_qname:
             Storage.delete_file_in_s3(urllib.parse.unquote(book.image_qname))
 

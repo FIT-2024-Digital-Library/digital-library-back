@@ -79,7 +79,6 @@ async def update_book(book_id: int, book: BookUpdate,
         book = await BooksCrud.update(uow.get_connection(), book_id, book)  ## тут тоже надо Celery
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
-        await uow.get_connection().commit()
         return book
 
 
@@ -91,8 +90,4 @@ async def delete_book(book_id: int, user_data: User = user_has_permissions(Privi
         book = await BooksCrud.delete(uow.get_connection(), book_id)
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
-        await uow.get_connection().commit()
-        await Indexing.delete_book(book_id)
-        Storage.delete_file_in_s3(urllib.parse.unquote(book['pdf_qname']))
-        Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))
         return book

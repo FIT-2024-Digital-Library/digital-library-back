@@ -9,6 +9,7 @@ from app.schemas import BookCreate, Book, User, BookUpdate, PrivilegesEnum
 from app.settings import async_session_maker
 from app.utils.auth import user_has_permissions
 
+
 router = APIRouter(
     prefix='/books',
     tags=['book']
@@ -60,9 +61,7 @@ async def create_book(
     async with async_session_maker() as session:
         book_added = await BooksCrud.create(session, book)
         await session.commit()
-        background_tasks.add_task(
-            Indexing.index_book, book_added['id'], book.genre, urllib.parse.unquote(book.pdf_qname)
-        )
+        background_tasks.add_task(Indexing.index_book, book_added['id'], book)
         return book_added
 
 
@@ -71,7 +70,7 @@ async def create_book(
 async def update_book(book_id: int, book: BookUpdate,
                       user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)):
     async with async_session_maker() as session:
-        book = await BooksCrud.update(session, book_id, book)  ## тут тоже надо Celery
+        book = await BooksCrud.update(session, book_id, book)############################################
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
         await session.commit()

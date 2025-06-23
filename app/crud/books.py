@@ -98,7 +98,7 @@ class BooksCrud(CrudInterface):
             await Indexing.index_book(element_id, book_dict['genre'], urllib.parse.unquote(book_dict['pdf_qname']))
 
         if book_dict['image_qname'] and book_dict['image_qname'] != "" and book_dict['image_qname'] != book_in_db[
-            'image_qname']:
+            'image_qname'] and book_in_db['image_qname'] and book_in_db['image_qname'] != "":
             Storage.delete_file_in_s3(urllib.parse.unquote(book_in_db['image_qname']))
 
         if book_dict['genre']:

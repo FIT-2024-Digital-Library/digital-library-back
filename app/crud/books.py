@@ -85,10 +85,12 @@ class BooksCrud(CrudInterface):
 
     @classmethod
     async def update(cls, session: AsyncSession, element_id: int, model: BookUpdate):
-        book_in_db = await cls.get(session, element_id)
+        query = select(book_table).where(and_(book_table.c.id == element_id, book_table.c.author == author_table.c.id))
+        result = await session.execute(query)
+        book_in_db = dict(result.mappings().first())
+
         if not book_in_db:
             return None
-
 
         book_dict = model.model_dump()
 
@@ -111,6 +113,9 @@ class BooksCrud(CrudInterface):
             author_id = await AuthorsCrud.get_existent_or_create(session, author_creation_model)
             book_dict['author'] = author_id
 
+        for key, value in book_in_db.items():
+            if key not in book_dict or book_dict[key] is None:
+                book_dict[key] = value
         query = update(book_table).where(book_table.c.id == element_id).values(**book_dict)
         await session.execute(query)
         return await cls.get(session, element_id)

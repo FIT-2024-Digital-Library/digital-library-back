@@ -6,6 +6,7 @@ from app.schemas import FileUploadedScheme, User, PrivilegesEnum
 from app.utils.auth import user_has_permissions
 from app.crud.storage import Storage
 
+
 router = APIRouter(
     prefix='/storage',
     tags=['storage']

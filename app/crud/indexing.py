@@ -1,7 +1,9 @@
-import re, io, nltk, pdfplumber
+import asyncio, re, io, nltk, pdfplumber, string, urllib.parse
+from concurrent.futures import ProcessPoolExecutor
 from fastapi import HTTPException
 
 from app.crud.storage import Storage
+from app.schemas import BookCreate
 from app.settings.elastic import elastic_cred, _es
 
 
@@ -11,41 +13,45 @@ nltk.download('stopwords')
 
 class Indexing:
     __english_stop_words = set(nltk.corpus.stopwords.words('english'))
+    __executor = ProcessPoolExecutor(max_workers=4)
 
-    @classmethod
-    def __extract_pdf_text(cls, content: bytes) -> str:
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
-            full_text = ""
-            for page in pdf.pages:
-                full_text += page.extract_text() + "\n"
-        print("BOOK-PROCESSING: Finish extracting")
-        return full_text
-
-
-    @classmethod
-    def __preprocess_text(cls, text: str, remove_punctuation: bool = True):
-        text = text.replace("\n", " ").replace("\t", " ")
-        text = re.sub(r'\s+', ' ', text)  ## лишние пробелы
+    @staticmethod
+    def __preprocess_text(text: str, remove_punctuation: bool = True):
+        # Заменить \n и \t на пробел, убрать лишние пробелы
+        text = re.sub(r'[\n\t]+', ' ', text)
+        text = re.sub(r'\s+', ' ', text)
 
         if remove_punctuation:
-            text = re.sub(r'[^\w\s]', '', text)
+            translator = str.maketrans('', '', string.punctuation)
+            text = text.translate(translator)
+        return text.lower().strip()
 
-        text = text.lower()
-        return text
+
+    @staticmethod
+    def __extract_book_text(genre: str, content: bytes) -> dict:
+        texts = []
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            for page in pdf.pages:
+                raw_text = page.extract_text()
+                if raw_text: texts.append(Indexing.__preprocess_text(raw_text))
+        print("BOOK-PROCESSING: Finish extracting")
+        return {
+            "genre": genre if genre is not None else '',
+            "content": ' '.join(texts)
+        }
 
 
     @classmethod
-    async def index_book(cls, book_id: int, genre: str, book_file_path: str):
-        document = {
-            "genre": genre if genre is not None else "",
-            "content": cls.__preprocess_text(cls.__extract_pdf_text(
-                await Storage.download_file_bytes(book_file_path)
-            ))
-        }
+    async def index_book(cls, book_id: int, book: BookCreate):
+        content = await Storage.download_file_bytes(urllib.parse.unquote(book.pdf_qname))
+        loop = asyncio.get_running_loop()
+        document = await loop.run_in_executor(
+            Indexing.__executor, Indexing.__extract_book_text,book.genre, content
+        )
         try:
             await _es.index(index=elastic_cred.books_index, id=str(book_id), body=document)
         except Exception as e:
-            raise HTTPException(status_code=418, detail=f"Indexation error: {e}")
+            print(f"Indexation error: {e}")
         print("BOOK-PROCESSING: Finish indexing")
 
 

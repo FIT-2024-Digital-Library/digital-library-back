@@ -59,10 +59,10 @@ async def create_book(
         user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)
 ):
     async with async_session_maker() as session:
-        book_id = await BooksCrud.create(session, book)
+        book_added = await BooksCrud.create(session, book)
         await session.commit()
-        background_tasks.add_task(Indexing.index_book, book_id, book)
-        return book_id
+        background_tasks.add_task(Indexing.index_book, book_added['id'], book)
+        return book_added
 
 
 @router.put('/{book_id}/update', response_model=Book,

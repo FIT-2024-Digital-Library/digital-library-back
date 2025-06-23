@@ -85,10 +85,12 @@ class BooksCrud(CrudInterface):
 
     @classmethod
     async def update(cls, session: AsyncSession, element_id: int, model: BookUpdate):
-        book_in_db = await cls.get(session, element_id)
+        query = select(book_table).where(and_(book_table.c.id == element_id, book_table.c.author == author_table.c.id))
+        result = await session.execute(query)
+        book_in_db = dict(result.mappings().first())
+
         if not book_in_db:
             return None
-
 
         book_dict = model.model_dump()
 
@@ -98,7 +100,7 @@ class BooksCrud(CrudInterface):
             await Indexing.index_book(element_id, book_dict['genre'], urllib.parse.unquote(book_dict['pdf_qname']))
 
         if book_dict['image_qname'] and book_dict['image_qname'] != "" and book_dict['image_qname'] != book_in_db[
-            'image_qname']:
+            'image_qname'] and book_in_db['image_qname'] and book_in_db['image_qname'] != "":
             Storage.delete_file_in_s3(urllib.parse.unquote(book_in_db['image_qname']))
 
         if book_dict['genre']:
@@ -111,6 +113,9 @@ class BooksCrud(CrudInterface):
             author_id = await AuthorsCrud.get_existent_or_create(session, author_creation_model)
             book_dict['author'] = author_id
 
+        for key, value in book_in_db.items():
+            if key not in book_dict or book_dict[key] is None:
+                book_dict[key] = value
         query = update(book_table).where(book_table.c.id == element_id).values(**book_dict)
         await session.execute(query)
         return await cls.get(session, element_id)

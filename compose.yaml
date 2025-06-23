@@ -81,6 +81,15 @@ services:
     restart: always
     networks:
       - library-dev
+  
+  lib-yjs-websocket:
+    container_name: library-yjs-websocket
+    build: ./config/yjs-websocket-image
+    restart: always
+    ports:
+      - "${YJS_WEBSOCKET_PORT}:1234"
+    networks:
+      - library-dev
 
 volumes:
   es-lib-volume:

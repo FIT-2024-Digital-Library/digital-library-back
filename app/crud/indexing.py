@@ -58,10 +58,11 @@ class Indexing:
     @classmethod
     async def delete_book(cls, book_id: int):
         try:
-            await _es.delete(index=elastic_cred.books_index, id=str(book_id))
+            if await _es.exists(index=elastic_cred.books_index, id=str(book_id)):
+                await _es.delete(index=elastic_cred.books_index, id=str(book_id))
+                print(f"BOOK-PROCESSING: Successfully deleted book with ID {book_id}")
         except Exception as e:
             raise HTTPException(status_code=418, detail=f"Deletion error: {e}")
-        print(f"BOOK-PROCESSING: Successfully deleted book with ID {book_id}")
 
 
     @classmethod

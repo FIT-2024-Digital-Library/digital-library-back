@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, HTTPException, BackgroundTasks
 from app.crud.books import BooksCrud
 from app.crud.indexing import Indexing
 from app.crud.storage import Storage
-from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
+from app.schemas import BookCreate, Book, User, BookUpdate, PrivilegesEnum
 from app.settings import async_session_maker
 from app.utils.auth import user_has_permissions
 
@@ -51,19 +51,19 @@ async def get_book(book_id: int):
         return result
 
 
-@router.post('/create', response_model=int,
+@router.post('/create', response_model=Book,
              summary='Creates new book. Only for authorized user with moderator privilege')
 async def create_book(
         book: BookCreate, background_tasks: BackgroundTasks,
         user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR)
 ):
     async with async_session_maker() as session:
-        book_id = await BooksCrud.create(session, book)
+        book_added = await BooksCrud.create(session, book)
         await session.commit()
         background_tasks.add_task(
-            Indexing.index_book, book_id, book.genre, urllib.parse.unquote(book.pdf_qname)
+            Indexing.index_book, book_added['id'], book.genre, urllib.parse.unquote(book.pdf_qname)
         )
-        return book_id
+        return book_added
 
 
 @router.put('/{book_id}/update', response_model=Book,
@@ -88,5 +88,6 @@ async def delete_book(book_id: int, user_data: User = user_has_permissions(Privi
         await session.commit()
         await Indexing.delete_book(book_id)
         Storage.delete_file_in_s3(urllib.parse.unquote(book['pdf_qname']))
-        Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))
+        if book['image_qname'] is not None and book['image_qname'] != "":
+            Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))
         return book

@@ -4,7 +4,6 @@ from fastapi import HTTPException
 from app.crud.storage import Storage
 from app.settings.elastic import elastic_cred, _es
 
-
 nltk.download('wordnet')
 nltk.download('stopwords')
 
@@ -21,7 +20,6 @@ class Indexing:
         print("BOOK-PROCESSING: Finish extracting")
         return full_text
 
-
     @classmethod
     def __preprocess_text(cls, text: str, remove_punctuation: bool = True):
         text = text.replace("\n", " ").replace("\t", " ")
@@ -33,7 +31,6 @@ class Indexing:
         text = text.lower()
         return text
 
-
     @classmethod
     async def index_book(cls, book_id: int, genre: str, book_file_path: str):
         document = {
@@ -44,19 +41,19 @@ class Indexing:
         }
         try:
             await _es.index(index=elastic_cred.books_index, id=str(book_id), body=document)
-            print("BOOK-PROCESSING: Finish indexing")
         except Exception as e:
             raise HTTPException(status_code=418, detail=f"Indexation error: {e}")
-
+        print("BOOK-PROCESSING: Finish indexing")
 
     @classmethod
     async def delete_book(cls, book_id: int):
         try:
-            await _es.delete(index=elastic_cred.books_index, id=str(book_id))
-            print(f"BOOK-PROCESSING: Successfully deleted book with ID {book_id}")
+            if await _es.exists(index=elastic_cred.books_index, id=str(book_id)):
+                await _es.delete(index=elastic_cred.books_index, id=str(book_id))
+                print(f"BOOK-PROCESSING: Successfully deleted book with ID {book_id}")
+
         except Exception as e:
             raise HTTPException(status_code=418, detail=f"Deletion error: {e}")
-
 
     @classmethod
     async def context_search_books(cls, query):
@@ -71,7 +68,6 @@ class Indexing:
         }
         return await _es.search(index=elastic_cred.books_index, query=search_query)
 
-
     @classmethod
     def __expand_and_filter_query(cls, query: str) -> str:
         query_words = set([word for word in query.split() if word not in cls.__english_stop_words])
@@ -85,7 +81,6 @@ class Indexing:
                         related_terms.add(hypernym_term.replace('_', ' '))
         print(f"BOOK-PROCESSING: Expanded query\n{related_terms}")
         return " ".join(query_words.union(related_terms))
-
 
     @classmethod
     async def semantic_search_books(cls, query: str):

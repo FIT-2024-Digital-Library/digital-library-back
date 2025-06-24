@@ -1,7 +1,7 @@
 from typing import Optional
 from .base import CamelCaseBaseModel
 
-__all__ = ["Book", "BookCreate", "BookUpdate"]
+__all__ = ["Book", "BookCreate", "BookUpdate", "BookIndex"]
 
 
 class BookCreate(CamelCaseBaseModel):
@@ -28,6 +28,11 @@ class BookUpdate(CamelCaseBaseModel):
     pdf_qname: Optional[str] = None
     avg_mark: Optional[float] = None
     marks_count: Optional[int] = None
+
+
+class BookIndex(CamelCaseBaseModel):
+    genre: str | None = None
+    pdf_qname: str
 
 
 class Book(BookCreate):

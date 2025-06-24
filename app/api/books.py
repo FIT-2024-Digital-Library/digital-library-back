@@ -1,11 +1,10 @@
 from typing import Optional, List
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, Query, BackgroundTasks, Depends
 
-from app.crud.books import BooksCrud
-from app.crud.indexing import Indexing
 from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
+from app.services import BookService
+from app.utils import get_uow, UnitOfWork
 from app.utils.auth import user_has_permissions
-from app.utils.unit_of_work import get_uow, UnitOfWork
 
 
 router = APIRouter(
@@ -27,7 +26,6 @@ async def get_books(
             ge=1.0,
             le=5.0
         ),
-
         max_mark: Optional[float] = Query(
             None,
             description="Maximum mark (from 1 to 5 inclusive)",
@@ -36,21 +34,14 @@ async def get_books(
         ),
         uow: UnitOfWork = Depends(get_uow)
 ):
-    async with uow.begin():
-        books = await BooksCrud.get_multiple(uow.get_connection(), title, author, genre, published_date, description,
-                                             min_mark,
-                                             max_mark)
-        return books
+    return await BookService.get_books(
+        title, author, genre, published_date, description, min_mark, max_mark, uow
+    )
 
 
 @router.get('/{book_id}', response_model=Book, summary='Returns book data')
-async def get_book(book_id: int,
-                   uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        result = await BooksCrud.get(uow.get_connection(), book_id)
-        if result is None:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return result
+async def get_book(book_id: int, uow: UnitOfWork = Depends(get_uow)):
+    return await BookService.get_book(book_id, uow)
 
 
 @router.post('/create', response_model=Book,
@@ -60,31 +51,24 @@ async def create_book(
         user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
         uow: UnitOfWork = Depends(get_uow)
 ):
-    async with uow.begin():
-        book_added = await BooksCrud.create(uow.get_connection(), book)
-        await uow.get_connection().commit()
-        background_tasks.add_task(Indexing.index_book, book_added.id, book_added)
-        return book_added
+    return await BookService.create_book(book, background_tasks, uow)
 
 
 @router.put('/{book_id}/update', response_model=Book,
             summary='Updates book data. Only for authorized user with admin privilege')
-async def update_book(book_id: int, book: BookUpdate,
-                      user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
-                      uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        book = await BooksCrud.update(uow.get_connection(), book_id, book)  ## тут тоже надо Celery
-        if book is None:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return book
+async def update_book(
+        book_id: int, book: BookUpdate,
+        user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
+        uow: UnitOfWork = Depends(get_uow)
+):
+    return await BookService.update_book(book_id, book, uow)
 
 
 @router.delete('/{book_id}/delete', response_model=Book,
                summary='Deletes book. Only for authorized user with admin privilege')
-async def delete_book(book_id: int, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
-                      uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        book = await BooksCrud.delete(uow.get_connection(), book_id)
-        if book is None:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return book
+async def delete_book(
+        book_id: int,
+        user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
+        uow: UnitOfWork = Depends(get_uow)
+):
+    return await BookService.delete_book(book_id, uow)

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import books, complex_search, users, authors, genres, storage, reviews
+from app.api import all_routers
 from app.settings import init_elastic_indexing
 from app.utils import create_tables, close_connections
 
@@ -25,13 +25,8 @@ app.add_middleware(
     allow_headers=['*']
 )
 
-app.include_router(books.router)
-app.include_router(complex_search.router)
-app.include_router(users.router)
-app.include_router(authors.router)
-app.include_router(genres.router)
-app.include_router(storage.router)
-app.include_router(reviews.router)
+for router in all_routers:
+    app.include_router(router)
 
 
 if __name__ == "__main__":

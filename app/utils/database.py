@@ -1,6 +1,7 @@
 from app.settings import db_engine
 from app.models import db_metadata
 
+
 __all__ = ["create_tables", "close_connections", "delete_tables"]
 
 

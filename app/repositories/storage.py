@@ -8,6 +8,9 @@ from minio.helpers import ObjectWriteResult
 from app.settings import minio_client, minio_cred
 
 
+__all__ = ["Storage"]
+
+
 class Storage:
     @classmethod
     def is_file_exists(cls, path_to_object: str) -> bool:
@@ -15,6 +18,7 @@ class Storage:
             return minio_client.stat_object(minio_cred.bucket_name, path_to_object) is not None
         except S3Error as _:
             return False
+
 
     @classmethod
     def __brute_force_path_select(cls, filename: str | None) -> str:
@@ -27,6 +31,7 @@ class Storage:
             index += 1
             path = f"{name}_{index}{extension}"
         return path
+
 
     @classmethod
     def upload_file_to_s3(cls, file: UploadFile) -> ObjectWriteResult:
@@ -47,6 +52,7 @@ class Storage:
             file_response.close()
             file_response.release_conn()
 
+
     @classmethod
     async def download_file_bytes(cls, full_path: str) -> bytes:
         data = bytearray()
@@ -54,9 +60,11 @@ class Storage:
             data.extend(chunk)
         return bytes(data)
 
+
     @classmethod
     def list_files_in_s3(cls):
         return minio_client.list_objects(minio_cred.bucket_name)
+
 
     @classmethod
     def delete_file_in_s3(cls, filename: str):

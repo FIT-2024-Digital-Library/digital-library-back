@@ -1,17 +1,18 @@
-from abc import ABC, abstractmethod
-
 from fastapi import HTTPException
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy import select, insert, update, delete
 
-from app.crud.crud_interface import CrudInterface
 from app.models import User
-from app.schemas import UserRegister, UserLogin, PrivilegesEnum, UserUpdate, UserLogined
+from app.schemas import UserRegister, UserLogin, PrivilegesEnum, UserUpdate
 from app.utils import get_password_hash, verify_password
 
+from .base import SQLAlchemyRepository
 
-class UsersCrud(CrudInterface):
+
+__all__ = ["UsersRepository"]
+
+
+class UsersRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, element_id: int):
         query = select(

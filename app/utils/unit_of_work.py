@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.settings import db_engine

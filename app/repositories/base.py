@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 
-class CrudInterface(ABC):
+class SQLAlchemyRepository(ABC):
     @abstractmethod
     async def get(cls, connection: AsyncConnection, element_id: int):
         pass

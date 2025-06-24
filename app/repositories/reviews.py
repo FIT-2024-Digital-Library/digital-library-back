@@ -10,6 +10,9 @@ from .base import SQLAlchemyRepository
 from .books import BooksRepository
 
 
+__all__ = ["ReviewsRepository"]
+
+
 class ReviewsRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, element_id: int) -> Optional[Review]:
@@ -18,6 +21,7 @@ class ReviewsRepository(SQLAlchemyRepository):
             .where(Review.id == element_id)
         )
         return result.mappings().first()
+
 
     @classmethod
     async def get_multiple(cls, connection: AsyncConnection, filters: ReviewsFiltersScheme = None) -> List[int]:
@@ -35,6 +39,7 @@ class ReviewsRepository(SQLAlchemyRepository):
 
         result = await connection.execute(query)
         return [review['id'] for review in result.mappings().all()]
+
 
     @classmethod
     async def create(cls, connection: AsyncConnection, model: ReviewCreate, owner_id: int = None) -> Review:
@@ -60,6 +65,7 @@ class ReviewsRepository(SQLAlchemyRepository):
         await cls._update_book_rating(connection, book, model.mark, increment=True)
         return review
 
+
     @classmethod
     async def delete(cls, connection: AsyncConnection, review_id: int, owner_id: int = None) -> Review:
         review = await cls.get(connection, review_id)
@@ -71,6 +77,7 @@ class ReviewsRepository(SQLAlchemyRepository):
         await connection.execute(delete(Review).where(Review.id == review_id))
         await cls._update_book_rating(connection, book, review.mark, increment=False)
         return review
+
 
     @classmethod
     async def update(cls, connection: AsyncConnection, element_id: int, owner_id: int, model: ReviewUpdate) -> Review:
@@ -105,6 +112,7 @@ class ReviewsRepository(SQLAlchemyRepository):
 
         return Review(**result.mappings().first())
 
+
     @classmethod
     async def check_review_by_user_and_book(cls, connection: AsyncConnection, owner_id: int, book_id: int) -> bool:
         result = await connection.execute(
@@ -117,15 +125,18 @@ class ReviewsRepository(SQLAlchemyRepository):
         )
         return result.scalar() is not None
 
+
     @classmethod
     async def get_average_mark(cls, connection: AsyncConnection, book_id: int) -> Optional[float]:
         book = await BooksRepository.get(connection, book_id)
         return book.avg_mark if book else None
 
+
     @classmethod
     async def get_reviews_count(cls, connection: AsyncConnection, book_id: int) -> Optional[int]:
         book = await BooksRepository.get(connection, book_id)
         return book.marks_count if book else None
+
 
     @classmethod
     async def _update_book_rating(cls, connection: AsyncConnection, book: Book, mark: int, increment: bool = True):
@@ -144,6 +155,7 @@ class ReviewsRepository(SQLAlchemyRepository):
             connection, book['id'],
             BookUpdate(**{'avg_mark': new_avg, 'marks_count': new_reviews_count})
         )
+
 
     @classmethod
     async def _update_book_rating_change(cls, connection: AsyncConnection, book: Book, old_mark: int, new_mark: int):

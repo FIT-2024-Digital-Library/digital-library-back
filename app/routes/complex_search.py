@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
-from app.repositories.indexing import Indexing
+from app.repositories import Indexing
 from app.settings import elastic_cred
+
 
 router = APIRouter(
     prefix='/complex_search',

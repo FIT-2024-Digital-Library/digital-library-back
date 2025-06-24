@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, status, Response, Depends
 
-from app.repositories.users import UsersRepository
-from app.models import Base
+from app.repositories import UsersRepository
 from app.schemas import UserRegister, UserLogin, User, UserLogined, PrivilegesEnum, UserUpdate
+from app.utils import UnitOfWork, get_uow
 from app.utils.auth import create_access_token, get_current_user, user_has_permissions
-from app.utils.unit_of_work import UnitOfWork, get_uow
+
 
 router = APIRouter(
     prefix='/users',

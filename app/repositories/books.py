@@ -13,6 +13,9 @@ from .indexing import Indexing
 from .storage import Storage
 
 
+__all__ = ["BooksRepository"]
+
+
 class BooksRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, element_id: int) -> Optional[Book]:

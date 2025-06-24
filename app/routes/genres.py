@@ -1,11 +1,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from app.repositories.genres import GenresRepository
+from app.repositories import GenresRepository
 from app.schemas import Genre, GenreCreate, PrivilegesEnum, User
-from app.utils import CrudException
+from app.utils import CrudException, UnitOfWork, get_uow
 from app.utils.auth import user_has_permissions
-from app.utils.unit_of_work import UnitOfWork, get_uow
 
 
 router = APIRouter(

@@ -7,6 +7,9 @@ from app.schemas import BookIndex
 from app.settings.elastic import elastic_cred, _es
 
 
+__all__ = ["Indexing"]
+
+
 nltk.download('wordnet')
 nltk.download('stopwords')
 

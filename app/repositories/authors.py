@@ -10,6 +10,9 @@ from app.utils import CrudException
 from .base import SQLAlchemyRepository
 
 
+__all__ = ["AuthorsRepository"]
+
+
 class AuthorsRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, author_id: int) -> Optional[Author]:

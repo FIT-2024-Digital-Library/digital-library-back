@@ -9,6 +9,9 @@ from app.utils import get_password_hash, verify_password
 from .base import SQLAlchemyRepository
 
 
+__all__ = ["UsersRepository"]
+
+
 class UsersRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, element_id: int):

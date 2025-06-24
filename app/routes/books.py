@@ -1,7 +1,7 @@
 from typing import Optional, List
 from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, Depends
 
-from app.repositories.books import BooksCrud
+from app.repositories.books import BooksRepository
 from app.repositories.indexing import Indexing
 from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
 from app.utils.auth import user_has_permissions
@@ -37,7 +37,7 @@ async def get_books(
         uow: UnitOfWork = Depends(get_uow)
 ):
     async with uow.begin():
-        books = await BooksCrud.get_multiple(uow.get_connection(), title, author, genre, published_date, description,
+        books = await BooksRepository.get_multiple(uow.get_connection(), title, author, genre, published_date, description,
                                              min_mark,
                                              max_mark)
         return books
@@ -47,7 +47,7 @@ async def get_books(
 async def get_book(book_id: int,
                    uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
-        result = await BooksCrud.get(uow.get_connection(), book_id)
+        result = await BooksRepository.get(uow.get_connection(), book_id)
         if result is None:
             raise HTTPException(status_code=404, detail="Book not found")
         return result
@@ -61,7 +61,7 @@ async def create_book(
         uow: UnitOfWork = Depends(get_uow)
 ):
     async with uow.begin():
-        book_added = await BooksCrud.create(uow.get_connection(), book)
+        book_added = await BooksRepository.create(uow.get_connection(), book)
         await uow.get_connection().commit()
         background_tasks.add_task(Indexing.index_book, book_added.id, book_added)
         return book_added
@@ -73,7 +73,7 @@ async def update_book(book_id: int, book: BookUpdate,
                       user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                       uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
-        book = await BooksCrud.update(uow.get_connection(), book_id, book)  ## тут тоже надо Celery
+        book = await BooksRepository.update(uow.get_connection(), book_id, book)  ## тут тоже надо Celery
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
         return book
@@ -84,7 +84,7 @@ async def update_book(book_id: int, book: BookUpdate,
 async def delete_book(book_id: int, user_data: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                       uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
-        book = await BooksCrud.delete(uow.get_connection(), book_id)
+        book = await BooksRepository.delete(uow.get_connection(), book_id)
         if book is None:
             raise HTTPException(status_code=404, detail="Book not found")
         return book

@@ -2,6 +2,7 @@ from elasticsearch import AsyncElasticsearch
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 __all__ = ["elastic_cred", "init_elastic_indexing", "delete_elastic_indexing"]
 
 

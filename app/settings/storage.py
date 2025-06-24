@@ -1,6 +1,7 @@
 from minio import Minio
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 __all__ = ["minio_client", "minio_cred"]
 
 

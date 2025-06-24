@@ -1,11 +1,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from app.repositories.authors import AuthorsRepository
+from app.repositories import AuthorsRepository
 from app.schemas import Author, AuthorCreate, PrivilegesEnum, User
-from app.utils import CrudException
+from app.utils import CrudException, UnitOfWork, get_uow
 from app.utils.auth import user_has_permissions
-from app.utils.unit_of_work import UnitOfWork, get_uow
 
 
 router = APIRouter(

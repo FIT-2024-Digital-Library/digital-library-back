@@ -2,7 +2,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from fastapi import Request, HTTPException, status, Depends
 
-from app.repositories.users import UsersCrud
+from app.repositories.users import UsersRepository
 from app.schemas import User
 from app.schemas.users import PrivilegesEnum
 from app.settings import auth_cred, async_session_maker
@@ -45,7 +45,7 @@ async def get_current_user(token: str = Depends(get_token)):
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='User author_id wasn\'t found')
     async with async_session_maker() as session:
-        user = await UsersCrud.get(session, int(user_id))
+        user = await UsersRepository.get(session, int(user_id))
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='User not found')
     return user

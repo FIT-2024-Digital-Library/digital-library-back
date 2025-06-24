@@ -124,20 +124,19 @@ class BooksRepository(SQLAlchemyRepository):
         book = await cls.get(connection, element_id)
         if not book:
             return None
-
         update_data = model.model_dump(exclude_unset=True)
 
-        if 'pdf_qname' in update_data and update_data['pdf_qname'] != book['pdf_qname']:
-            if book['pdf_qname']:
+        if 'pdf_qname' in update_data and update_data['pdf_qname'] != book.pdf_qname:
+            if book.pdf_qname:
                 await Indexing.delete_book(element_id)
-                Storage.delete_file_in_s3(urllib.parse.unquote(book['pdf_qname']))
+                Storage.delete_file_in_s3(urllib.parse.unquote(book.pdf_qname))
 
             if update_data['pdf_qname']:
                 await Indexing.index_book(element_id, BookIndex(**update_data))
 
-        if 'image_qname' in update_data and update_data['image_qname'] != book['image_qname']:
-            if book['image_qname']:
-                Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))
+        if 'image_qname' in update_data and update_data['image_qname'] != book.image_qname:
+            if book.image_qname:
+                Storage.delete_file_in_s3(urllib.parse.unquote(book.image_qname))
 
         if 'genre' in update_data and update_data['genre']:
             genre_id = await GenresRepository.get_existent_or_create(

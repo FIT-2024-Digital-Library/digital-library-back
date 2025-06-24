@@ -140,8 +140,8 @@ class ReviewsRepository(SQLAlchemyRepository):
 
     @classmethod
     async def _update_book_rating(cls, connection: AsyncConnection, book: Book, mark: int, increment: bool = True):
-        current_avg = book['avg_mark']
-        reviews_count_for_book = book['marks_count']
+        current_avg = book.avg_mark
+        reviews_count_for_book = book.marks_count
         if increment:
             new_reviews_count = reviews_count_for_book + 1
             new_avg = (current_avg * reviews_count_for_book + mark) / new_reviews_count
@@ -152,15 +152,15 @@ class ReviewsRepository(SQLAlchemyRepository):
             else:
                 new_avg = (current_avg * reviews_count_for_book - mark) / new_reviews_count
         await BooksRepository.update(
-            connection, book['id'],
+            connection, book.id,
             BookUpdate(**{'avg_mark': new_avg, 'marks_count': new_reviews_count})
         )
 
 
     @classmethod
     async def _update_book_rating_change(cls, connection: AsyncConnection, book: Book, old_mark: int, new_mark: int):
-        current_avg = book['avg_mark'] or 0
-        reviews_count = book['marks_count'] or 0
+        current_avg = book.avg_mark or 0
+        reviews_count = book.marks_count or 0
         new_avg = (current_avg * reviews_count - old_mark + new_mark) / reviews_count
 
-        await BooksRepository.update(connection, book['id'], BookUpdate(**{'avg_mark': new_avg}))
+        await BooksRepository.update(connection, book.id, BookUpdate(**{'avg_mark': new_avg}))

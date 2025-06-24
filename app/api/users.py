@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Response, Depends
 
-from app.repositories import UsersRepository
 from app.schemas import UserRegister, UserLogin, User, UserLogined, PrivilegesEnum, UserUpdate
+from app.services import UserService
 from app.utils import UnitOfWork, get_uow
-from app.utils.auth import create_access_token, get_current_user, user_has_permissions
+from app.utils.auth import get_current_user, user_has_permissions
 
 
 router = APIRouter(
@@ -19,27 +19,12 @@ async def get_profile(user_data: User = Depends(get_current_user)):
 
 @router.post('/login', response_model=User, summary='Logs user in')
 async def login(response: Response, user_data: UserLogin, uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        user = await UsersRepository.login(uow.get_connection(), user_data)
-        if user is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                detail='Wrong password or email')
-        access_token = create_access_token({"sub": str(user.id)})
-        response.set_cookie(key="users_access_token", value=access_token, httponly=True, secure=True, samesite='none')
-        user_data = {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "privileges": user.privileges
-        }
-        return user_data
+    return await UserService.login(response, user_data, uow)
 
 
 @router.post('/register', response_model=UserLogined, summary='Creates new user')
 async def register(user_data: UserRegister, uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        data = await UsersRepository.create(uow.get_connection(), user_data)
-        return data
+    return await UserService.register(user_data, uow)
 
 
 @router.post("/logout", response_model=None, summary='Log out of system')
@@ -49,49 +34,38 @@ async def logout_user(response: Response):
 
 
 @router.post('/{user_id}/set_privilege', response_model=User, summary='Sets the privilege for user')
-async def set_privilege_for_user(user_id: int, privilege: PrivilegesEnum,
-                                 user_creds: User = user_has_permissions(PrivilegesEnum.ADMIN),
-                                 uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        data = await UsersRepository.set_role_for_user(uow.get_connection(), privilege, user_id)
-        return data
+async def set_privilege_for_user(
+        user_id: int, privilege: PrivilegesEnum,
+        user_creds: User = user_has_permissions(PrivilegesEnum.ADMIN),
+        uow: UnitOfWork = Depends(get_uow)
+):
+    return await UserService.set_privilege_for_user(user_id, privilege, uow)
 
 
 @router.put('/{user_id}/update', response_model=User, summary='Updates user by id')
-async def update_user_by_id(user_id: int, user_data: UserUpdate,
-                            user_creds: User = Depends(get_current_user), uow: UnitOfWork = Depends(get_uow)):
-    if user_creds.privileges == PrivilegesEnum.ADMIN or user_creds.id == user_id:
-        async with uow.begin():
-            data = await UsersRepository.update(uow.get_connection(), user_id, user_data)
-            return data
-    else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='No permission')
+async def update_user_by_id(
+        user_id: int,
+        user_data: UserUpdate,
+        user_creds: User = Depends(get_current_user),
+        uow: UnitOfWork = Depends(get_uow)
+):
+    return await UserService.update_user_by_id(user_id, user_data, user_creds, uow)
 
 
 @router.delete('/{user_id}/delete', response_model=User, summary='Deletes user by id')
-async def delete_user_by_id(user_id: int,
-                            user_creds: User = Depends(get_current_user), uow: UnitOfWork = Depends(get_uow)):
-    if user_creds.privileges == PrivilegesEnum.ADMIN or user_creds.id == user_id:
-        async with uow.begin():
-            data = await UsersRepository.delete(uow.get_connection(), user_id)
-            if data is None:
-                raise HTTPException(status_code=403, detail="User doesn't exist")
-            return data
-    else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='No permission')
+async def delete_user_by_id(
+        user_id: int, user_creds: User = Depends(get_current_user), uow: UnitOfWork = Depends(get_uow)
+):
+    return await UserService.delete_user_by_id(user_id, user_creds, uow)
 
 
 @router.get('/{user_id}', response_model=User, summary='Returns user by id')
 async def get_user_by_id(user_id: int, uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        user = await UsersRepository.get(uow.get_connection(), user_id)
-        if user is None:
-            raise HTTPException(status_code=403, detail="User doesn't exist")
-        return user
+    return await UserService.get_user_by_id(user_id, uow)
 
 
 @router.get('/', response_model=list[User], summary='Returns all users')
-async def get_users(user_creds: User = user_has_permissions(PrivilegesEnum.ADMIN), uow: UnitOfWork = Depends(get_uow)):
-    async with uow.begin():
-        data = await UsersRepository.get_multiple(uow.get_connection())
-        return data
+async def get_users(
+        user_creds: User = user_has_permissions(PrivilegesEnum.ADMIN), uow: UnitOfWork = Depends(get_uow)
+):
+    return await UserService.get_users(uow)

@@ -3,7 +3,7 @@ from concurrent.futures import ProcessPoolExecutor
 from fastapi import HTTPException
 
 from app.crud.storage import Storage
-from app.schemas import BookCreate
+from app.schemas import BookIndex
 from app.settings.elastic import elastic_cred, _es
 
 
@@ -16,7 +16,7 @@ class Indexing:
     __executor = ProcessPoolExecutor(max_workers=4)
 
     @staticmethod
-    def __preprocess_text(text: str, remove_punctuation: bool = True):
+    def preprocess_text(text: str, remove_punctuation: bool = True):
         # Заменить \n и \t на пробел, убрать лишние пробелы
         text = re.sub(r'[\n\t]+', ' ', text)
         text = re.sub(r'\s+', ' ', text)
@@ -28,12 +28,13 @@ class Indexing:
 
 
     @staticmethod
-    def __extract_book_text(genre: str, content: bytes) -> dict:
+    def extract_book_text(genre: str, content: bytes) -> dict:
         texts = []
+        print("BOOK-PROCESSING: Start extracting")
         with pdfplumber.open(io.BytesIO(content)) as pdf:
             for page in pdf.pages:
                 raw_text = page.extract_text()
-                if raw_text: texts.append(Indexing.__preprocess_text(raw_text))
+                if raw_text: texts.append(Indexing.preprocess_text(raw_text))
         print("BOOK-PROCESSING: Finish extracting")
         return {
             "genre": genre if genre is not None else '',
@@ -42,11 +43,12 @@ class Indexing:
 
 
     @classmethod
-    async def index_book(cls, book_id: int, book: BookCreate):
+    async def index_book(cls, book_id: int, book: BookIndex):
+        print("BOOK-PROCESSING: Start process")
         content = await Storage.download_file_bytes(urllib.parse.unquote(book.pdf_qname))
         loop = asyncio.get_running_loop()
         document = await loop.run_in_executor(
-            Indexing.__executor, Indexing.__extract_book_text,book.genre, content
+            Indexing.__executor, Indexing.extract_book_text,book.genre, content
         )
         try:
             await _es.index(index=elastic_cred.books_index, id=str(book_id), body=document)
@@ -69,7 +71,7 @@ class Indexing:
     async def context_search_books(cls, query):
         search_query = {
             "multi_match": {
-                "query": cls.__preprocess_text(query),
+                "query": Indexing.preprocess_text(query),
                 "fields": ["genre", "content"],
                 "type": "most_fields",
                 "operator": "and",
@@ -98,7 +100,7 @@ class Indexing:
     async def semantic_search_books(cls, query: str):
         search_query = {
             "multi_match": {
-                "query": cls.__expand_and_filter_query(cls.__preprocess_text(query)),
+                "query": cls.__expand_and_filter_query(Indexing.preprocess_text(query)),
                 "fields": ["genre^3", "content"],
                 "type": "most_fields",
                 "operator": "or",

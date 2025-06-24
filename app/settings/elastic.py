@@ -43,7 +43,7 @@ _es = AsyncElasticsearch(elastic_cred.elastic_url)
 
 async def init_elastic_indexing():
     if not await _es.indices.exists(index=elastic_cred.books_index):
-        print("Создаем индекс")
+        print(elastic_cred.books_index, elastic_cred.index_settings)
         await _es.indices.create(index=elastic_cred.books_index, body=elastic_cred.index_settings)
 
 

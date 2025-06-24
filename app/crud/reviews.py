@@ -1,119 +1,156 @@
 import datetime
-from sqlalchemy import select, insert, delete, update
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
+from sqlalchemy import select, delete, update, insert
+from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import func
 
 from app.crud.books import BooksCrud
 from app.crud.crud_interface import CrudInterface
-from app.models import review_table
-from app.schemas import Review, ReviewCreate, ReviewUpdate, ReviewsFiltersScheme, BookUpdate
+from app.models import Review, Book, User
+from app.schemas import ReviewCreate, ReviewUpdate, ReviewsFiltersScheme, BookUpdate
 
 
 class ReviewsCrud(CrudInterface):
-    REVIEW_FIELDS = ['id', 'owner_id', 'book_id', 'mark', 'last_edit_date', 'text']
+    @classmethod
+    async def get(cls, connection: AsyncConnection, element_id: int) -> Optional[Review]:
+        result = await connection.execute(
+            select(Review)
+            .where(Review.id == element_id)
+        )
+        return result.mappings().first()
 
     @classmethod
-    async def get(cls, session: AsyncSession, element_id: int) -> Optional[Review]:
-        result = (await session.execute(
-            select(*[review_table.c[field] for field in cls.REVIEW_FIELDS])
-            .where(review_table.c.id == element_id)
-        )).mappings().first()
-        return None if result is None else Review(**result)
+    async def get_multiple(cls, connection: AsyncConnection, filters: ReviewsFiltersScheme = None) -> List[int]:
+        if filters is None:
+            filters = ReviewsFiltersScheme()
 
-    @classmethod
-    async def get_multiple(cls, session: AsyncSession, filters: ReviewsFiltersScheme = None) -> List[int]:
-        query = select(*[review_table.c[field] for field in cls.REVIEW_FIELDS]).limit(filters.limit).offset(
-            filters.offset)
+        query = select(Review.id)
+
         if filters.book_id is not None:
-            query = query.where(review_table.c.book_id == filters.book_id)
+            query = query.where(Review.book_id == filters.book_id)
         if filters.owner_id is not None:
-            query = query.where(review_table.c.owner_id == filters.owner_id)
-        result = await session.execute(query)
+            query = query.where(Review.owner_id == filters.owner_id)
+
+        query = query.limit(filters.limit).offset(filters.offset)
+
+        result = await connection.execute(query)
         return [review['id'] for review in result.mappings().all()]
 
     @classmethod
-    async def create(cls, session: AsyncSession, model: ReviewCreate, owner_id: int = None) -> Review:
-        book = await BooksCrud.get(session, model.book_id)
+    async def create(cls, connection: AsyncConnection, model: ReviewCreate, owner_id: int = None) -> Review:
+        book = await BooksCrud.get(connection, model.book_id)
         if book is None:
             raise ValueError("Book for review not found")
-        if await cls.check_review_by_user_and_book(session, owner_id, book['id']):
+
+        if await cls.check_review_by_user_and_book(connection, owner_id, book.id):
             raise ValueError("Only one review for book from one user")
-        result = await session.execute(
-            insert(review_table)
-            .values(owner_id=owner_id, last_edit_date=datetime.date.today(), **model.model_dump())
-            .returning(*[review_table.c[field] for field in cls.REVIEW_FIELDS])
+
+        result = await connection.execute(
+            insert(Review).values(
+                owner_id=owner_id,
+                book_id=model.book_id,
+                mark=model.mark,
+                text=model.text,
+                last_edit_date=datetime.date.today()
+            ).returning(Review.__table__)
         )
-        current_avg = book['avg_mark']
-        reviews_count_for_book = book['marks_count']
-        new_reviews_count = reviews_count_for_book + 1
-        new_avg = (current_avg * reviews_count_for_book + model.mark) / new_reviews_count
-        print(new_avg)
-        await BooksCrud.update(session, model.book_id,
-                               BookUpdate(**{'avg_mark': new_avg, 'marks_count': new_reviews_count}))
-        await session.commit()
-        return Review(**result.mappings().first())
+        review_data = result.mappings().first()
+        review = Review(**review_data)
+
+        await cls._update_book_rating(connection, book, model.mark, increment=True)
+        return review
 
     @classmethod
-    async def delete(cls, session: AsyncSession, review_id: int, owner_id: int = None):
-        review = await cls.get(session, review_id)
+    async def delete(cls, connection: AsyncConnection, review_id: int, owner_id: int = None) -> Review:
+        review = await cls.get(connection, review_id)
         if review is None:
             raise ValueError("Review not found")
         if review.owner_id != owner_id:
             raise ValueError("It's not your review")
-        book = await BooksCrud.get(session, review.book_id)
-        current_avg = book['avg_mark']
-        reviews_count_for_book = book['marks_count']
-        new_reviews_count = reviews_count_for_book - 1
-        new_avg = (
-                              current_avg * reviews_count_for_book - review.mark) / new_reviews_count if new_reviews_count > 0 else 0
-        await BooksCrud.update(session, review.book_id,
-                                BookUpdate(**{'avg_mark': new_avg, 'marks_count': new_reviews_count}))
-        await session.execute(
-            delete(review_table).where(review_table.c.id == review_id)
-        )
-        await session.commit()
+        book = await BooksCrud.get(connection, review.book_id)
+        await connection.execute(delete(Review).where(Review.id == review_id))
+        await cls._update_book_rating(connection, book, review.mark, increment=False)
         return review
 
     @classmethod
-    async def update(cls, session: AsyncSession, element_id: int, owner_id: int, model: ReviewUpdate = None) -> Review:
-        old_review = await cls.get(session, element_id)
-        if old_review is None:
+    async def update(cls, connection: AsyncConnection, element_id: int, owner_id: int, model: ReviewUpdate) -> Review:
+        review = await cls.get(connection, element_id)
+        if review is None:
             raise ValueError("Review not found")
-        if old_review.owner_id != owner_id:
+        if review['owner_id'] != owner_id:
             raise ValueError("It's not your review")
-        if model.mark is not None and model.mark != old_review.mark:
-            book = await BooksCrud.get(session, old_review.book_id)
-            current_avg = book['avg_mark']
-            reviews_count_for_book = book['marks_count']
-            new_avg = (
-                              current_avg * reviews_count_for_book - old_review.mark + model.mark) / reviews_count_for_book
-            await BooksCrud.update(session, old_review.book_id, BookUpdate(**{'avg_mark': new_avg}))
-        result = await session.execute(
-            update(review_table)
-            .where(review_table.c.id == element_id)
-            .values(last_edit_date=datetime.date.today(), **model.model_dump())
-            .returning(*[review_table.c[field] for field in cls.REVIEW_FIELDS])
+        update_values = model.model_dump(exclude_unset=True)
+
+        book = await BooksCrud.get(connection, review.book_id)
+        if model.mark is not None and model.mark != review['mark']:
+            old_mark = review['mark']
+            update_values['mark'] = model.mark
+            await cls._update_book_rating_change(connection, book, old_mark, model.mark)
+
+        if model.text is not None:
+            update_values['text'] = model.text
+
+        update_values['last_edit_date'] = datetime.date.today()
+
+        # Execute the update
+        await connection.execute(
+            update(Review)
+            .where(Review.id == element_id)
+            .values(**update_values)
         )
-        await session.commit()
+
+        # Refresh and return the updated review
+        result = await connection.execute(
+            select(Review)
+            .where(Review.id == element_id)
+        )
+
         return Review(**result.mappings().first())
 
     @classmethod
-    async def check_review_by_user_and_book(cls, session: AsyncSession, owner_id: int, book_id: int) -> bool:
-        result = (await session.execute(
-            select(review_table)
+    async def check_review_by_user_and_book(cls, connection: AsyncConnection, owner_id: int, book_id: int) -> bool:
+        result = await connection.execute(
+            select(Review)
             .where(
-                review_table.c.owner_id == owner_id,
-                review_table.c.book_id == book_id
+                Review.owner_id == owner_id,
+                Review.book_id == book_id
             )
-        )).scalar()
-        return result is not None
+            .limit(1)
+        )
+        return result.scalar() is not None
 
     @classmethod
-    async def get_average_mark(cls, session: AsyncSession, book_id: int) -> Optional[float]:
-        book = await BooksCrud.get(session, book_id)
-        return book['avg_mark'] if book else None
+    async def get_average_mark(cls, connection: AsyncConnection, book_id: int) -> Optional[float]:
+        book = await BooksCrud.get(connection, book_id)
+        return book.avg_mark if book else None
 
     @classmethod
-    async def get_reviews_count(cls, session: AsyncSession, book_id: int) -> Optional[int]:
-        book = await BooksCrud.get(session, book_id)
-        return book['marks_count'] if book else None
+    async def get_reviews_count(cls, connection: AsyncConnection, book_id: int) -> Optional[int]:
+        book = await BooksCrud.get(connection, book_id)
+        return book.marks_count if book else None
+
+    @classmethod
+    async def _update_book_rating(cls, connection: AsyncConnection, book: Book, mark: int, increment: bool = True):
+        current_avg = book['avg_mark']
+        reviews_count_for_book = book['marks_count']
+        if increment:
+            new_reviews_count = reviews_count_for_book + 1
+            new_avg = (current_avg * reviews_count_for_book + mark) / new_reviews_count
+        else:
+            new_reviews_count = reviews_count_for_book - 1
+            if new_reviews_count == 0:
+                new_avg = 0
+            else:
+                new_avg = (current_avg * reviews_count_for_book - mark) / new_reviews_count
+        await BooksCrud.update(connection, book['id'],
+                               BookUpdate(**{'avg_mark': new_avg, 'marks_count': new_reviews_count}))
+
+    @classmethod
+    async def _update_book_rating_change(cls, connection: AsyncConnection, book: Book, old_mark: int, new_mark: int):
+        current_avg = book['avg_mark'] or 0
+        reviews_count = book['marks_count'] or 0
+        new_avg = (current_avg * reviews_count - old_mark + new_mark) / reviews_count
+
+        await BooksCrud.update(connection, book['id'],
+                               BookUpdate(**{'avg_mark': new_avg}))

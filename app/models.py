@@ -1,57 +1,59 @@
 from sqlalchemy import MetaData, Table, Column, Integer, String, Date, ForeignKey, Float
 from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.orm import declarative_base
 
 db_metadata = MetaData()
 
 privileges_enum = ENUM("basic", "admin", "moderator", name="privileges", metadata=db_metadata)
 
-user_table = Table(
-    "user_table",
-    db_metadata,
-    Column("id", Integer, primary_key=True),
-    Column("email", String),
-    Column("name", String(30)),
-    Column("password_hash", String(512)),
-    Column("privileges", privileges_enum, default="basic")  # TODO: по хорошему надо будет заменить на группы
-)
+Base = declarative_base()
 
-author_table = Table(
-    "author_table",
-    db_metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String(150))
-)
 
-genre_table = Table(
-    "genre_table",
-    db_metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String(150))
-)
+class User(Base):
+    __tablename__ = 'user_table'
 
-book_table = Table(
-    "book_table",
-    db_metadata,
-    Column("id", Integer, primary_key=True),
-    Column("theme_id", Integer, nullable=False),
-    Column("title", String(50)),
-    Column("author", ForeignKey(author_table.c.id), nullable=False),
-    Column("genre", ForeignKey(genre_table.c.id), nullable=True),
-    Column("published_date", Integer, nullable=True),
-    Column("description", String, nullable=True),
-    Column("image_qname", String, nullable=True),
-    Column("pdf_qname", String),
-    Column("avg_mark", Float),
-    Column("marks_count", Integer)
-)
+    id = Column(Integer, primary_key=True)
+    email = Column(String)
+    name = Column(String(30))
+    password_hash = Column(String(512))
+    privileges = Column(ENUM("basic", "admin", "moderator", name="privileges"), default="basic")
 
-review_table = Table(
-    "review_table",
-    db_metadata,
-    Column("id", Integer, primary_key=True),
-    Column("owner_id", ForeignKey(user_table.c.id, ondelete='CASCADE'), index=True, nullable=False),
-    Column("book_id", ForeignKey(book_table.c.id, ondelete='CASCADE'), index=True, nullable=False),
-    Column("mark", Integer),
-    Column("text", String, nullable=True),
-    Column("last_edit_date", Date)
-)
+
+class Author(Base):
+    __tablename__ = 'author_table'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(150))
+
+
+class Genre(Base):
+    __tablename__ = 'genre_table'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(150))
+
+
+class Book(Base):
+    __tablename__ = 'book_table'
+
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(Integer, nullable=False)
+    title = Column(String(50))
+    author = Column(ForeignKey('author_table.id'), nullable=False)
+    genre = Column(ForeignKey('genre_table.id'), nullable=True)
+    published_date = Column(Integer, nullable=True)
+    description = Column(String, nullable=True)
+    image_qname = Column(String, nullable=True)
+    pdf_qname = Column(String)
+    avg_mark = Column(Float)
+    marks_count = Column(Integer)
+
+
+class Review(Base):
+    __tablename__ = 'review_table'
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(ForeignKey('user_table.id', ondelete='CASCADE'), index=True, nullable=False)
+    book_id = Column(ForeignKey('book_table.id', ondelete='CASCADE'), index=True, nullable=False)
+    mark = Column(Integer)
+    text = Column(String, nullable=True)
+    last_edit_date = Column(Date)

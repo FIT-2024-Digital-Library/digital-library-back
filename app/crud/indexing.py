@@ -3,7 +3,7 @@ from concurrent.futures import ProcessPoolExecutor
 from fastapi import HTTPException
 
 from app.crud.storage import Storage
-from app.schemas import BookCreate
+from app.schemas import BookIndex
 from app.settings.elastic import elastic_cred, _es
 
 
@@ -30,6 +30,7 @@ class Indexing:
     @staticmethod
     def extract_book_text(genre: str, content: bytes) -> dict:
         texts = []
+        print("BOOK-PROCESSING: Start extracting")
         with pdfplumber.open(io.BytesIO(content)) as pdf:
             for page in pdf.pages:
                 raw_text = page.extract_text()
@@ -42,7 +43,8 @@ class Indexing:
 
 
     @classmethod
-    async def index_book(cls, book_id: int, book: BookCreate):
+    async def index_book(cls, book_id: int, book: BookIndex):
+        print("BOOK-PROCESSING: Start process")
         content = await Storage.download_file_bytes(urllib.parse.unquote(book.pdf_qname))
         loop = asyncio.get_running_loop()
         document = await loop.run_in_executor(

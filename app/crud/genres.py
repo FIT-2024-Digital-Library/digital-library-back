@@ -1,66 +1,97 @@
+from typing import List, Optional
 from sqlalchemy import select, insert, delete, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_interface import CrudInterface
-from app.models import genre_table
+from app.models import Genre
 from app.schemas import GenreCreate
 from app.utils import CrudException
 
 
 class GenresCrud(CrudInterface):
     @classmethod
-    async def get(cls, session: AsyncSession, genre_id: int):
-        query = select(genre_table).where(genre_table.c.id == genre_id)
-        result = await session.execute(query)
+    async def get(cls, connection: AsyncConnection, genre_id: int) -> Optional[Genre]:
+        result = await connection.execute(
+            select(Genre)
+            .where(Genre.id == genre_id)
+        )
         return result.mappings().first()
 
     @classmethod
-    async def get_multiple(cls, session: AsyncSession, name: str | None = None):
+    async def get_multiple(
+            cls,
+            connection: AsyncConnection,
+            name: Optional[str] = None
+    ) -> List[Genre]:
+        query = select(Genre)
+
         if name is not None:
-            query = select(genre_table).where(genre_table.c.name.ilike(f"%{name}%"))
-        else:
-            query = select(genre_table)
-        result = await session.execute(query)
+            query = query.where(Genre.name.ilike(f"%{name}%"))
+
+        result = await connection.execute(query)
         return result.mappings().all()
 
     @classmethod
-    async def create(cls, session: AsyncSession, genre: GenreCreate):
-        query = insert(genre_table).values(**genre.model_dump())
-        result = await session.execute(query)
-        genre_id = result.inserted_primary_key[0]
-        return genre_id
+    async def create(cls, connection: AsyncConnection, genre: GenreCreate) -> int:
+        """Создать нового автора"""
+        result = await connection.execute(
+            insert(Genre)
+            .values(name=genre.name)
+            .returning(Genre.id)
+        )
+        return result.scalar_one()
 
     @classmethod
-    async def get_existent_or_create(cls, session: AsyncSession, genre: GenreCreate):
-        genres_in_db = await cls.get_multiple(session, name=genre.name)
-        if genres_in_db is None or len(genres_in_db) == 0:
-            query = insert(genre_table).values(**genre.model_dump())
-            result = await session.execute(query)
-            genre_id = result.inserted_primary_key[0]
-        else:
-            genre_id = genres_in_db[0]["id"]
-        return genre_id
+    async def get_existent_or_create(
+            cls,
+            connection: AsyncConnection,
+            genre: GenreCreate
+    ) -> int:
+        existing_genres = await cls.get_multiple(connection, name=genre.name)
+
+        if existing_genres:
+            return existing_genres[0].id
+
+        result = await connection.execute(
+            insert(Genre)
+            .values(name=genre.name)
+            .returning(Genre.id)
+        )
+        return result.scalar_one()
 
     @classmethod
-    async def delete(cls, session: AsyncSession, genre_id: int):
+    async def delete(cls, connection: AsyncConnection, genre_id: int) -> Optional[Genre]:
         try:
-            genre = await cls.get(session, genre_id)
-            if genre is not None:
-                query = delete(genre_table).where(genre_table.c.id == genre_id)
-                await session.execute(query)
+            genre = await cls.get(connection, genre_id)
+            if genre:
+                await connection.execute(
+                    delete(Genre)
+                    .where(Genre.id == genre_id)
+                )
             return genre
         except IntegrityError as e:
-            raise CrudException("Update or delete on table violates foreign key constraint")
+            raise CrudException(
+                "Cannot delete genre - it is referenced by other records"
+            )
 
     @classmethod
-    async def update(cls, session: AsyncSession, genre_id: int, genre: GenreCreate):
+    async def update(
+            cls,
+            connection: AsyncConnection,
+            genre_id: int,
+            genre: GenreCreate
+    ) -> Optional[Genre]:
         try:
-            genre_in_db = await cls.get(session, genre_id)
-            if genre_in_db is not None:
-                query = update(genre_table).where(genre_table.c.id == genre_id).values(**genre.model_dump())
-                await session.execute(query)
-                genre_in_db = await cls.get(session, genre_id)
+            genre_in_db = await cls.get(connection, genre_id)
+            if genre_in_db:
+                await connection.execute(
+                    update(Genre)
+                    .where(Genre.id == genre_id)
+                    .values(name=genre.name)
+                )
             return genre_in_db
         except IntegrityError as e:
-            raise CrudException("Update or delete on table violates foreign key constraint")
+            raise CrudException(
+                "Cannot update genre - integrity constraint violation"
+            )

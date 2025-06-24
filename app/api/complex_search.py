@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from app.repositories import Indexing
-from app.settings import elastic_cred
+from app.services import SearchService
 
 
 router = APIRouter(
@@ -12,13 +11,9 @@ router = APIRouter(
 
 @router.get("/context", response_model=list[int])
 async def context_search(query: str) -> list[int]:
-    results: dict = await Indexing.context_search_books(query)
-    return [int(book["_id"]) for book in results['hits']['hits']
-                             if book["_score"] >= elastic_cred.min_content_score]
+    return await SearchService.context_search(query)
 
 
 @router.get("/semantic", response_model=list[int])
 async def semantic_search(query: str) -> list[int]:
-    results: dict = await Indexing.semantic_search_books(query)
-    return [int(book["_id"]) for book in results['hits']['hits']
-                             if book["_score"] >= elastic_cred.min_semantic_score]
+    return await SearchService.semantic_search(query)

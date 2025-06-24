@@ -2,10 +2,9 @@ from sqlalchemy import MetaData, Table, Column, Integer, String, Date, ForeignKe
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import declarative_base
 
+
 db_metadata = MetaData()
-
 privileges_enum = ENUM("basic", "admin", "moderator", name="privileges", metadata=db_metadata)
-
 Base = declarative_base()
 
 

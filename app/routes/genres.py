@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from app.repositories.genres import GenresCrud
+from app.repositories.genres import GenresRepository
 from app.schemas import Genre, GenreCreate, PrivilegesEnum, User
 from app.utils import CrudException
 from app.utils.auth import user_has_permissions
@@ -18,7 +18,7 @@ router = APIRouter(
 async def get_genres(name: Optional[str] = Query(None, description="Find by genre name"),
                      uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
-        genres = await GenresCrud.get_multiple(uow.get_connection(), name)
+        genres = await GenresRepository.get_multiple(uow.get_connection(), name)
         if genres is None:
             raise HTTPException(status_code=404, detail="Genre not found")
         return genres
@@ -27,7 +27,7 @@ async def get_genres(name: Optional[str] = Query(None, description="Find by genr
 @router.get('/{genre_id}', response_model=Genre, summary='Returns genre')
 async def get_genre(genre_id: int, uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
-        genre = await GenresCrud.get(uow.get_connection(), genre_id)
+        genre = await GenresRepository.get(uow.get_connection(), genre_id)
         if genre is None:
             raise HTTPException(status_code=404, detail="Genre not found")
         return genre
@@ -38,9 +38,9 @@ async def create_genre(genre: GenreCreate,
                        user_creds: User = user_has_permissions(PrivilegesEnum.MODERATOR),
                        uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
-        key = await GenresCrud.get_multiple(uow.get_connection(), name=genre.name)
+        key = await GenresRepository.get_multiple(uow.get_connection(), name=genre.name)
         if len(key) == 0:
-            key = await GenresCrud.create(uow.get_connection(), genre)
+            key = await GenresRepository.create(uow.get_connection(), genre)
         else:
             raise HTTPException(status_code=409, detail="Genre already exists")
         # Commit is handled automatically by the UnitOfWork context manager.
@@ -53,7 +53,7 @@ async def delete_genre(genre_id: int,
                        uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
         try:
-            genre = await GenresCrud.delete(uow.get_connection(), genre_id)
+            genre = await GenresRepository.delete(uow.get_connection(), genre_id)
             if genre is None:
                 raise HTTPException(status_code=404, detail="Genre not found")
             await uow.get_connection().commit()
@@ -68,7 +68,7 @@ async def update_genre(genre_id: int, genre: GenreCreate,
                        uow: UnitOfWork = Depends(get_uow)):
     async with uow.begin():
         try:
-            genre = await GenresCrud.update(uow.get_connection(), genre_id, genre)
+            genre = await GenresRepository.update(uow.get_connection(), genre_id, genre)
             if genre is None:
                 raise HTTPException(status_code=404, detail="Genre not found")
             await uow.get_connection().commit()

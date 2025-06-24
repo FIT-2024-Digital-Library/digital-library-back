@@ -3,13 +3,14 @@ from sqlalchemy import select, insert, delete, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.exc import IntegrityError
 
-from app.repositories.crud_interface import CrudInterface
 from app.models import Genre
 from app.schemas import GenreCreate
 from app.utils import CrudException
 
+from .base import SQLAlchemyRepository
 
-class GenresCrud(CrudInterface):
+
+class GenresRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, genre_id: int) -> Optional[Genre]:
         result = await connection.execute(

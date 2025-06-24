@@ -8,7 +8,7 @@ from app.schemas import Book, BookCreate, BookUpdate, BookIndex, GenreCreate, Au
 
 from .authors import AuthorsRepository
 from .base import SQLAlchemyRepository
-from .genres import GenresCrud
+from .genres import GenresRepository
 from .indexing import Indexing
 from .storage import Storage
 
@@ -23,7 +23,7 @@ class BooksRepository(SQLAlchemyRepository):
         book_model = result.mappings().first()
         author = await AuthorsRepository.get(connection, book_model.author)
         author_name = author and author.name
-        genre = await GenresCrud.get(connection, book_model.genre)
+        genre = await GenresRepository.get(connection, book_model.genre)
         genre_name = genre and genre.name
         return Book(
             id=book_model.id, theme_id=book_model.theme_id, title=book_model.title,
@@ -55,7 +55,7 @@ class BooksRepository(SQLAlchemyRepository):
                 return []
             filters.append(models.Book.author == author_in_db[0].id)
         if genre:
-            genre_in_db = await GenresCrud.get_multiple(connection, genre)
+            genre_in_db = await GenresRepository.get_multiple(connection, genre)
             if not genre_in_db:
                 return []
             filters.append(models.Book.genre == genre_in_db[0].id)
@@ -79,7 +79,7 @@ class BooksRepository(SQLAlchemyRepository):
         book_data = model.model_dump()
 
         if book_data['genre']:
-            genre_id = await GenresCrud.get_existent_or_create(
+            genre_id = await GenresRepository.get_existent_or_create(
                 connection,
                 GenreCreate(name=book_data['genre'])
             )
@@ -137,7 +137,7 @@ class BooksRepository(SQLAlchemyRepository):
                 Storage.delete_file_in_s3(urllib.parse.unquote(book['image_qname']))
 
         if 'genre' in update_data and update_data['genre']:
-            genre_id = await GenresCrud.get_existent_or_create(
+            genre_id = await GenresRepository.get_existent_or_create(
                 connection,
                 GenreCreate(name=update_data['genre'])
             )

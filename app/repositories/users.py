@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy import select, insert, update, delete
 
-from app.crud.crud_interface import CrudInterface
+from app.repositories.crud_interface import CrudInterface
 from app.models import User
 from app.schemas import UserRegister, UserLogin, PrivilegesEnum, UserUpdate, UserLogined
 from app.utils import get_password_hash, verify_password

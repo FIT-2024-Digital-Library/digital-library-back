@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Response, Depends
 
-from app.crud.users import UsersCrud
+from app.repositories.users import UsersCrud
 from app.models import Base
 from app.schemas import UserRegister, UserLogin, User, UserLogined, PrivilegesEnum, UserUpdate
 from app.utils.auth import create_access_token, get_current_user, user_has_permissions

@@ -4,11 +4,11 @@ from sqlalchemy import select, and_, update, insert, delete
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app import models
-from app.crud.authors import AuthorsCrud
-from app.crud.crud_interface import CrudInterface
-from app.crud.genres import GenresCrud
-from app.crud.indexing import Indexing
-from app.crud.storage import Storage
+from app.repositories.authors import AuthorsCrud
+from app.repositories.crud_interface import CrudInterface
+from app.repositories.genres import GenresCrud
+from app.repositories.indexing import Indexing
+from app.repositories.storage import Storage
 from app.schemas import Book, BookCreate, GenreCreate, AuthorCreate
 from app.schemas.books import BookUpdate, BookIndex
 

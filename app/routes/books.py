@@ -1,8 +1,8 @@
 from typing import Optional, List
 from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, Depends
 
-from app.crud.books import BooksCrud
-from app.crud.indexing import Indexing
+from app.repositories.books import BooksCrud
+from app.repositories.indexing import Indexing
 from app.schemas import Book, BookCreate, User, BookUpdate, PrivilegesEnum
 from app.utils.auth import user_has_permissions
 from app.utils.unit_of_work import get_uow, UnitOfWork

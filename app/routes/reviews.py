@@ -1,7 +1,7 @@
 from typing import List, Annotated
 from fastapi import APIRouter, Query, HTTPException, Depends
 
-from app.crud.reviews import ReviewsCrud
+from app.repositories.reviews import ReviewsCrud
 from app.schemas import User, ReviewsFiltersScheme, Review, ReviewCreate, ReviewUpdate
 from app.utils.auth import get_current_user
 from app.utils.unit_of_work import UnitOfWork, get_uow

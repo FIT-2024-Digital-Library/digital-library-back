@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from app.crud.authors import AuthorsCrud
+from app.repositories.authors import AuthorsCrud
 from app.schemas import Author, AuthorCreate, PrivilegesEnum, User
 from app.utils import CrudException
 from app.utils.auth import user_has_permissions

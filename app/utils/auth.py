@@ -2,7 +2,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from fastapi import Request, HTTPException, status, Depends
 
-from app.crud.users import UsersCrud
+from app.repositories.users import UsersCrud
 from app.schemas import User
 from app.schemas.users import PrivilegesEnum
 from app.settings import auth_cred, async_session_maker

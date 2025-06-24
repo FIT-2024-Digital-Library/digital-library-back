@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from app.crud.genres import GenresCrud
+from app.repositories.genres import GenresCrud
 from app.schemas import Genre, GenreCreate, PrivilegesEnum, User
 from app.utils import CrudException
 from app.utils.auth import user_has_permissions

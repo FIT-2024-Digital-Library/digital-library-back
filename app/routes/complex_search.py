@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.crud.indexing import Indexing
+from app.repositories.indexing import Indexing
 from app.settings import elastic_cred
 
 router = APIRouter(

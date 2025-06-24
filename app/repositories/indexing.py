@@ -2,7 +2,7 @@ import asyncio, re, io, nltk, pdfplumber, string, urllib.parse
 from concurrent.futures import ProcessPoolExecutor
 from fastapi import HTTPException
 
-from app.crud.storage import Storage
+from app.repositories.storage import Storage
 from app.schemas import BookIndex
 from app.settings.elastic import elastic_cred, _es
 

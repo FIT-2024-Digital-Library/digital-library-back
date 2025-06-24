@@ -3,13 +3,14 @@ from sqlalchemy import select, insert, delete, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.exc import IntegrityError
 
-from app.crud.crud_interface import CrudInterface
 from app.models import Author
 from app.schemas import AuthorCreate
 from app.utils import CrudException
 
+from .base import SQLAlchemyRepository
 
-class AuthorsCrud(CrudInterface):
+
+class AuthorsRepository(SQLAlchemyRepository):
     @classmethod
     async def get(cls, connection: AsyncConnection, author_id: int) -> Optional[Author]:
         result = await connection.execute(

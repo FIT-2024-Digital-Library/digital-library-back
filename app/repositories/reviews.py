@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import func
 
-from app.crud.books import BooksCrud
-from app.crud.crud_interface import CrudInterface
+from app.repositories.books import BooksCrud
+from app.repositories.crud_interface import CrudInterface
 from app.models import Review, Book, User
 from app.schemas import ReviewCreate, ReviewUpdate, ReviewsFiltersScheme, BookUpdate
 

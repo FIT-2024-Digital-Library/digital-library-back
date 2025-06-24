@@ -3,7 +3,7 @@ from sqlalchemy import select, insert, delete, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.exc import IntegrityError
 
-from app.crud.crud_interface import CrudInterface
+from app.repositories.crud_interface import CrudInterface
 from app.models import Genre
 from app.schemas import GenreCreate
 from app.utils import CrudException

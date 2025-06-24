@@ -20,7 +20,7 @@ class UserService:
             response.set_cookie(
                 key="users_access_token", value=access_token, httponly=True, secure=True, samesite='none'
             )
-            return User(**user.model_dump())
+            return User(**user)
 
     @staticmethod
     async def register(user_data: UserRegister, uow: UnitOfWork) -> UserLogined:

@@ -2,9 +2,8 @@ from typing import List, Optional
 from fastapi import HTTPException
 
 from app.repositories import GenresRepository
-from app.schemas import Genre, GenreCreate, PrivilegesEnum, User
-from app.utils import CrudException, UnitOfWork, get_uow
-from app.utils.auth import user_has_permissions
+from app.schemas import Genre, GenreCreate
+from app.utils import CrudException, UnitOfWork
 
 
 __all__ = ["GenreService"]

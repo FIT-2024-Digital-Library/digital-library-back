@@ -1,5 +1,8 @@
 # Digital Library
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/FIT-2024-Digital-Library/digital-library-back)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/FIT-2024-Digital-Library/digital-library-front)
+
 ## Technology Stack and Features
 
 - [**FastAPI**](https://fastapi.tiangolo.com) for the Python backend API.

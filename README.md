@@ -1,7 +1,8 @@
 # Digital Library
 
-[![Backend Docs](https://deepwiki.com/badge.svg)](https://deepwiki.com/FIT-2024-Digital-Library/digital-library-back)
-[![Frontend Docs](https://deepwiki.com/badge.svg)](https://deepwiki.com/FIT-2024-Digital-Library/digital-library-front)
+Backend Docs: [![](https://deepwiki.com/badge.svg)](https://deepwiki.com/FIT-2024-Digital-Library/digital-library-back)
+
+Frontend Docs: [![](https://deepwiki.com/badge.svg)](https://deepwiki.com/FIT-2024-Digital-Library/digital-library-front)
 
 ## Technology Stack and Features
 

@@ -74,9 +74,13 @@ ALGORITHM=<encrypting_algorithm: e.g. HS256>
 ```
 
 4. Run service:
+
+Deploy
+```bash
+python -m app.main
+```
+
+Develop
 ```bash
 fastapi dev app/main.py
 ```
-
-## Project description
-...
